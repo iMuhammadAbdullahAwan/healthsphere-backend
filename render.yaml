@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: healthsphere-backend
+    env: docker
+    repo: https://github.com/iMuhammadAbdullahAwan/mapple-health # replace with your GitHub repo
+    branch: main
+    dockerfilePath: Dockerfile
+    plan: free
+    envVars:
+      - key: CI_ENVIRONMENT
+        value: production
+services:
+  - type: web
+    name: healthsphere-backend
+    env: docker
+    repo: https://github.com/iMuhammadAbdullahAwan/mapple-health # replace with your GitHub repo
+    branch: main
+    dockerfilePath: Dockerfile
+    plan: free
+    envVars:
+      - key: CI_ENVIRONMENT
+        value: production
+services:
+  - type: web
+    name: healthsphere-backend
+    env: docker
+    repo: https://github.com/iMuhammadAbdullahAwan/mapple-health # replace with your GitHub repo
+    branch: main
+    dockerfilePath: Dockerfile
+    plan: free
+    envVars:
+      - key: CI_ENVIRONMENT
+        value: production
