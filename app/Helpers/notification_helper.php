@@ -50,3 +50,49 @@ if (!function_exists('notify')) {
         return $notificationService->createNotification($data);
     }
 }
+
+if (!function_exists('notifyScheduleReminder')) {
+    /**
+     * Send a schedule reminder notification
+     * 
+     * @param int $userId User ID to notify
+     * @param int $scheduleId Schedule ID
+     * @param string $scheduleType Type of schedule (medicine, food, water, etc.)
+     * @param string $title Schedule title
+     * @param string $message Custom message (optional)
+     * @return int|bool Notification ID on success, false on failure
+     */
+    function notifyScheduleReminder(
+        int $userId,
+        int $scheduleId,
+        string $scheduleType,
+        string $title,
+        string $message = null
+    ) {
+        $notificationService = new NotificationService();
+
+        // Generate message if not provided
+        if (!$message) {
+            $message = match ($scheduleType) {
+                'medicine' => "Time to take your medicine: {$title}",
+                'food' => "Meal reminder: {$title}",
+                'water' => "Time to drink water: {$title}",
+                'running' => "Time for your activity: {$title}",
+                'sleep' => "Sleep reminder: {$title}",
+                'custom' => "Reminder: {$title}",
+                default => "Schedule reminder: {$title}"
+            };
+        }
+
+        $data = [
+            'user_ids'   => [$userId],
+            'created_by' => $userId, // System notification
+            'message'    => $message,
+            'type'       => 'schedule_reminder',
+            'link'       => "/schedules/{$scheduleId}",
+            'related_id' => $scheduleId,
+        ];
+
+        return $notificationService->createNotification($data);
+    }
+}

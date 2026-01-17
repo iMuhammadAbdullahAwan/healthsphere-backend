@@ -4,7 +4,6 @@ namespace App\Controllers\Api;
 
 use App\Controllers\BaseController;
 use App\Models\UserModel;
-use App\Models\UserDelegationModel;
 use CodeIgniter\API\ResponseTrait;
 use CodeIgniter\HTTP\ResponseInterface;
 
@@ -34,19 +33,11 @@ class Users extends BaseController
     private UserModel $userModel;
 
     /**
-     * User delegation model instance
-     *
-     * @var UserDelegationModel
-     */
-    private UserDelegationModel $delegationModel;
-
-    /**
      * Constructor - Initialize dependencies
      */
     public function __construct()
     {
         $this->userModel = new UserModel();
-        $this->delegationModel = new UserDelegationModel();
     }
 
     /**
@@ -72,47 +63,32 @@ class Users extends BaseController
 
             $offset = max(0, ($page - 1) * $limit);
 
-            $users = [];
-            $total = 0;
-
-            if ($this->current_user_role === 'user_admin') {
-                // user_admin can only see users delegated to them
-                $delegatedUsers = $this->delegationModel->getDelegatedUsers($this->current_user_id);
-
-                // Apply search filter if provided
-                if (!empty($q)) {
-                    $delegatedUsers = array_filter($delegatedUsers, function ($user) use ($q) {
-                        return stripos($user['full_name'], $q) !== false ||
-                            stripos($user['email'], $q) !== false;
-                    });
-                }
-
-                $total = count($delegatedUsers);
-                // Apply pagination
-                $users = array_slice($delegatedUsers, $offset, $limit);
-            } elseif ($this->current_user_role === 'super_admin') {
-                // super_admin can see all users except other super_admins (for safety)
-                $builder = $this->userModel->whereIn('role', ['user', 'user_admin']);
-
-                if (!empty($q)) {
-                    $builder = $builder->groupStart()
-                        ->like('full_name', $q)
-                        ->orLike('email', $q)
-                        ->groupEnd();
-                }
-
-                $users = $builder->select(['id', 'email', 'full_name', 'role', 'profile_img', 'created_at', 'last_login'])
-                    ->findAll($limit, $offset);
-
-                $countBuilder = $this->userModel->whereIn('role', ['user', 'user_admin']);
-                if (!empty($q)) {
-                    $countBuilder = $countBuilder->groupStart()
-                        ->like('full_name', $q)
-                        ->orLike('email', $q)
-                        ->groupEnd();
-                }
-                $total = $countBuilder->countAllResults(false);
+            // Only super_admin can list users
+            if ($this->current_user_role !== 'super_admin') {
+                return sendApiResponse(null, 'Only super admin can list users', 403);
             }
+
+            // super_admin can see all users except other super_admins (for safety)
+            $builder = $this->userModel->whereIn('role', ['user', 'user_admin']);
+
+            if (!empty($q)) {
+                $builder = $builder->groupStart()
+                    ->like('full_name', $q)
+                    ->orLike('email', $q)
+                    ->groupEnd();
+            }
+
+            $users = $builder->select(['id', 'email', 'full_name', 'role', 'profile_img', 'created_at', 'last_login'])
+                ->findAll($limit, $offset);
+
+            $countBuilder = $this->userModel->whereIn('role', ['user', 'user_admin']);
+            if (!empty($q)) {
+                $countBuilder = $countBuilder->groupStart()
+                    ->like('full_name', $q)
+                    ->orLike('email', $q)
+                    ->groupEnd();
+            }
+            $total = $countBuilder->countAllResults(false);
 
             return sendApiResponse([
                 'users' => $users,
@@ -233,20 +209,9 @@ class Users extends BaseController
 
             $targetRole = $user['role'] ?? 'user';
 
-            // user_admin can only modify delegated users
-            if ($this->current_user_role === 'user_admin') {
-                // Check if user is delegated to this admin
-                if (!$this->delegationModel->isDelegated($this->current_user_id, $targetId)) {
-                    return sendApiResponse(null, 'You do not have permission to modify this user', 403);
-                }
-
-                if ($targetRole !== 'user') {
-                    return sendApiResponse(null, 'You can only modify regular user accounts', 403);
-                }
-                // user_admin cannot promote to admin roles
-                if ($role !== 'user') {
-                    return sendApiResponse(null, 'You do not have permission to assign admin roles', 403);
-                }
+            // Only super_admin can modify roles
+            if ($this->current_user_role !== 'super_admin') {
+                return sendApiResponse(null, 'Only super admin can modify user roles', 403);
             }
 
             // super_admin cannot modify other super_admins
@@ -279,8 +244,8 @@ class Users extends BaseController
                 return sendApiResponse(null, 'User not authenticated', 401);
             }
 
-            // Both user_admin and super_admin can delete users (with restrictions)
-            if (!$this->hasAnyRole(['user_admin', 'super_admin'])) {
+            // Only super_admin can delete users
+            if (!$this->hasAnyRole(['super_admin'])) {
                 return sendApiResponse(null, 'Forbidden', 403);
             }
 
@@ -301,16 +266,9 @@ class Users extends BaseController
 
             $targetRole = $user['role'] ?? 'user';
 
-            // user_admin can only delete delegated regular users
-            if ($this->current_user_role === 'user_admin') {
-                // Check if user is delegated to this admin
-                if (!$this->delegationModel->isDelegated($this->current_user_id, $targetId)) {
-                    return sendApiResponse(null, 'You do not have permission to delete this user', 403);
-                }
-
-                if ($targetRole !== 'user') {
-                    return sendApiResponse(null, 'You can only delete regular user accounts', 403);
-                }
+            // Only super_admin can delete users
+            if ($this->current_user_role !== 'super_admin') {
+                return sendApiResponse(null, 'Only super admin can delete users', 403);
             }
 
             // super_admin cannot delete other super_admins (safety measure)
@@ -324,156 +282,6 @@ class Users extends BaseController
         } catch (\Throwable $e) {
             logError($e);
             return $this->failServerError('Failed to delete user.');
-        }
-    }
-
-    /**
-     * Super Admin: Delegate a user to a user_admin
-     * POST /api/admin/delegations
-     *
-     * @return ResponseInterface
-     */
-    public function delegateUser(): ResponseInterface
-    {
-        try {
-            if (!$this->current_user_id) {
-                return sendApiResponse(null, 'User not authenticated', 401);
-            }
-
-            // Only super_admin can delegate users
-            if (!$this->hasAnyRole(['super_admin'])) {
-                return sendApiResponse(null, 'Forbidden: Only super admin can delegate users', 403);
-            }
-
-            $request = $this->request->getJSON(true);
-            $adminId = $request['admin_id'] ?? null;
-            $userId = $request['user_id'] ?? null;
-
-            if (!$adminId || !$userId) {
-                return sendApiResponse(null, 'admin_id and user_id are required', 400);
-            }
-
-            // Verify admin is user_admin
-            $admin = $this->userModel->find((int) $adminId);
-            if (!$admin || $admin['role'] !== 'user_admin') {
-                return sendApiResponse(null, 'Invalid admin: must be a user_admin', 422);
-            }
-
-            // Verify user is regular user
-            $user = $this->userModel->find((int) $userId);
-            if (!$user || $user['role'] !== 'user') {
-                return sendApiResponse(null, 'Invalid user: must be a regular user', 422);
-            }
-
-            // Check if already delegated
-            if ($this->delegationModel->isDelegated((int) $adminId, (int) $userId)) {
-                return sendApiResponse(null, 'User is already delegated to this admin', 400);
-            }
-
-            // Create delegation
-            $success = $this->delegationModel->delegate(
-                (int) $adminId,
-                (int) $userId,
-                $this->current_user_id
-            );
-
-            if (!$success) {
-                return sendApiResponse(null, 'Failed to create delegation', 500);
-            }
-
-            return sendApiResponse([
-                'admin_id' => $adminId,
-                'user_id' => $userId,
-            ], 'User delegated successfully', 201);
-        } catch (\Throwable $e) {
-            logError($e);
-            return $this->failServerError('Failed to delegate user.');
-        }
-    }
-
-    /**
-     * Super Admin: Remove user delegation
-     * DELETE /api/admin/delegations/{adminId}/{userId}
-     *
-     * @param int $adminId
-     * @param int $userId
-     * @return ResponseInterface
-     */
-    public function removeDelegation($adminId = null, $userId = null): ResponseInterface
-    {
-        try {
-            if (!$this->current_user_id) {
-                return sendApiResponse(null, 'User not authenticated', 401);
-            }
-
-            // Only super_admin can remove delegations
-            if (!$this->hasAnyRole(['super_admin'])) {
-                return sendApiResponse(null, 'Forbidden: Only super admin can remove delegations', 403);
-            }
-
-            $adminId = (int) $adminId;
-            $userId = (int) $userId;
-
-            if (!$adminId || !$userId) {
-                return sendApiResponse(null, 'admin_id and user_id are required', 400);
-            }
-
-            // Check if delegation exists
-            if (!$this->delegationModel->isDelegated($adminId, $userId)) {
-                return sendApiResponse(null, 'Delegation not found', 404);
-            }
-
-            $success = $this->delegationModel->removeDelegation($adminId, $userId);
-
-            if (!$success) {
-                return sendApiResponse(null, 'Failed to remove delegation', 500);
-            }
-
-            return sendApiResponse(null, 'Delegation removed successfully', 200);
-        } catch (\Throwable $e) {
-            logError($e);
-            return $this->failServerError('Failed to remove delegation.');
-        }
-    }
-
-    /**
-     * Get delegations for a user_admin or super_admin view
-     * GET /api/admin/delegations
-     *
-     * @return ResponseInterface
-     */
-    public function getDelegations(): ResponseInterface
-    {
-        try {
-            if (!$this->current_user_id) {
-                return sendApiResponse(null, 'User not authenticated', 401);
-            }
-
-            if (!$this->hasAnyRole(['user_admin', 'super_admin'])) {
-                return sendApiResponse(null, 'Forbidden', 403);
-            }
-
-            if ($this->current_user_role === 'user_admin') {
-                // Return users delegated to this admin
-                $delegations = $this->delegationModel->getDelegatedUsers($this->current_user_id);
-            } else {
-                // super_admin sees all delegations
-                $delegations = $this->delegationModel
-                    ->select('user_delegations.*, 
-                             u1.email as user_email, u1.full_name as user_name, u1.role as user_role,
-                             u2.email as admin_email, u2.full_name as admin_name')
-                    ->join('users as u1', 'u1.id = user_delegations.user_id')
-                    ->join('users as u2', 'u2.id = user_delegations.admin_id')
-                    ->findAll();
-            }
-
-            return sendApiResponse([
-                'delegations' => $delegations,
-                'count' => count($delegations),
-            ], 'Delegations retrieved', 200);
-        } catch (\Throwable $e) {
-            logError($e);
-            return $this->failServerError('Failed to get delegations.');
         }
     }
 

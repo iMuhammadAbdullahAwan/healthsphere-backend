@@ -51,6 +51,21 @@ $routes->group('api', ['namespace' => 'App\Controllers\Api'], function ($routes)
         $routes->patch('notifications/(:num)/read', 'NotificationController::markAsRead/$1');
         $routes->patch('notifications/mark-all-read', 'NotificationController::markAllAsRead');
         $routes->delete('notifications/(:num)', 'NotificationController::delete/$1');
+
+        // Schedule Routes
+        $routes->get('schedules', 'ScheduleController::index');
+        $routes->get('schedules/today', 'ScheduleController::today');
+        $routes->get('schedules/upcoming', 'ScheduleController::upcoming');
+        $routes->get('schedules/stats', 'ScheduleController::stats');
+        $routes->get('schedules/history', 'ScheduleController::history');
+        $routes->get('schedules/completion-stats', 'ScheduleController::completionStats');
+        $routes->get('schedules/(:num)', 'ScheduleController::show/$1');
+        $routes->get('schedules/(:num)/logs', 'ScheduleController::getLogs/$1');
+        $routes->post('schedules', 'ScheduleController::create');
+        $routes->post('schedules/logs/(:num)/complete', 'ScheduleController::completeLog/$1');
+        $routes->put('schedules/(:num)', 'ScheduleController::update/$1');
+        $routes->patch('schedules/(:num)/status', 'ScheduleController::updateStatus/$1');
+        $routes->delete('schedules/(:num)', 'ScheduleController::delete/$1');
     });
 });
 
