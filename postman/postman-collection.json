@@ -1,0 +1,1018 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "name": "HealthSphere API",
+    "description": "Complete API collection for HealthSphere Backend with organized folders for Authentication, User Profile, Notifications, and Schedules features. Includes automatic token management and pre-configured requests for all endpoints.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "12345678"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost/healthsphere-backend",
+      "type": "default"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "default"
+    },
+    {
+      "key": "refresh_token",
+      "value": "",
+      "type": "default"
+    },
+    {
+      "key": "user_id",
+      "value": "",
+      "type": "default"
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register New User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('access_token', response.data.access_token);",
+                  "    pm.collectionVariables.set('refresh_token', response.data.refresh_token);",
+                  "    pm.collectionVariables.set('user_id', response.data.user.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"testuser@example.com\",\n  \"password\": \"SecurePass123!\",\n  \"full_name\": \"Test User\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "register"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login with Email & Password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('access_token', response.data.access_token);",
+                  "    pm.collectionVariables.set('refresh_token', response.data.refresh_token);",
+                  "    pm.collectionVariables.set('user_id', response.data.user.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"testuser@example.com\",\n  \"password\": \"SecurePass123!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Send OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"testuser@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/send-otp",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "send-otp"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Verify OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"testuser@example.com\",\n  \"otp\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/verify-otp",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "verify-otp"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login with OTP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('access_token', response.data.access_token);",
+                  "    pm.collectionVariables.set('refresh_token', response.data.refresh_token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"testuser@example.com\",\n  \"otp\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login-otp",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login-otp"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('access_token', response.data.access_token);",
+                  "    pm.collectionVariables.set('refresh_token', response.data.refresh_token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/refresh",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "refresh"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "logout"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"testuser@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/forgot-password",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "forgot-password"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"reset_token_from_email\",\n  \"password\": \"NewSecurePass123!\",\n  \"password_confirm\": \"NewSecurePass123!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/reset-password",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "reset-password"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "User Profile",
+      "item": [
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/users/profile",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "profile"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"Updated Name\",\n  \"date_of_birth\": \"1990-05-15\",\n  \"gender\": \"male\",\n  \"phone\": \"+1234567890\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/users/profile",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "profile"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Upload Profile Image",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "profile_img",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/users/profile/image",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "profile", "image"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Account",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"SecurePass123!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/users/account",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "account"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "Get All Notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/notifications",
+              "host": ["{{base_url}}"],
+              "path": ["api", "notifications"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Notifications (Filtered)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/notifications?read=0&type=schedule_reminder",
+              "host": ["{{base_url}}"],
+              "path": ["api", "notifications"],
+              "query": [
+                {
+                  "key": "read",
+                  "value": "0"
+                },
+                {
+                  "key": "type",
+                  "value": "schedule_reminder"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Unread Count",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/notifications/unread-count",
+              "host": ["{{base_url}}"],
+              "path": ["api", "notifications", "unread-count"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Single Notification",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/notifications/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "notifications", "1"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Mark as Read",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/notifications/1/read",
+              "host": ["{{base_url}}"],
+              "path": ["api", "notifications", "1", "read"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Mark All as Read",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/notifications/mark-all-read",
+              "host": ["{{base_url}}"],
+              "path": ["api", "notifications", "mark-all-read"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Notification",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/notifications/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "notifications", "1"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Schedules",
+      "item": [
+        {
+          "name": "Get All Schedules",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/schedules",
+              "host": ["{{base_url}}"],
+              "path": ["api", "schedules"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Schedules (Filtered)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/schedules?type=medicine&status=active",
+              "host": ["{{base_url}}"],
+              "path": ["api", "schedules"],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "medicine"
+                },
+                {
+                  "key": "status",
+                  "value": "active"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Today's Schedules",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/schedules/today",
+              "host": ["{{base_url}}"],
+              "path": ["api", "schedules", "today"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Upcoming Schedules",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/schedules/upcoming?days=7",
+              "host": ["{{base_url}}"],
+              "path": ["api", "schedules", "upcoming"],
+              "query": [
+                {
+                  "key": "days",
+                  "value": "7"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Schedule Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/schedules/stats",
+              "host": ["{{base_url}}"],
+              "path": ["api", "schedules", "stats"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Single Schedule",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/schedules/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "schedules", "1"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Medicine Schedule",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"schedule_type\": \"medicine\",\n  \"title\": \"Morning Medication\",\n  \"description\": \"Blood pressure medication\",\n  \"start_date\": \"2026-01-20\",\n  \"start_time\": \"08:00\",\n  \"repeat_type\": \"daily\",\n  \"end_condition\": \"never\",\n  \"reminder_enabled\": true,\n  \"reminder_mode\": \"notification\",\n  \"medicine_details\": {\n    \"medicine_name\": \"Lisinopril\",\n    \"dosage_text\": \"10mg tablet\",\n    \"instructions\": \"Take with water\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/schedules",
+              "host": ["{{base_url}}"],
+              "path": ["api", "schedules"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Food Schedule",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"schedule_type\": \"food\",\n  \"title\": \"Lunch Reminder\",\n  \"start_date\": \"2026-01-20\",\n  \"start_time\": \"12:30\",\n  \"repeat_type\": \"daily\",\n  \"end_condition\": \"never\",\n  \"reminder_enabled\": true,\n  \"food_details\": {\n    \"meal_type\": \"lunch\",\n    \"notes\": \"Healthy balanced meal\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/schedules",
+              "host": ["{{base_url}}"],
+              "path": ["api", "schedules"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Water Schedule",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"schedule_type\": \"water\",\n  \"title\": \"Hydration Reminder\",\n  \"start_date\": \"2026-01-20\",\n  \"start_time\": \"09:00\",\n  \"repeat_type\": \"custom_days\",\n  \"repeat_days\": [1, 2, 3, 4, 5],\n  \"end_condition\": \"never\",\n  \"reminder_enabled\": true,\n  \"water_details\": {\n    \"amount_per_time\": 250,\n    \"glasses_count\": 8\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/schedules",
+              "host": ["{{base_url}}"],
+              "path": ["api", "schedules"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Running Schedule",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"schedule_type\": \"running\",\n  \"title\": \"Morning Jog\",\n  \"start_date\": \"2026-01-20\",\n  \"start_time\": \"06:00\",\n  \"repeat_type\": \"weekly\",\n  \"repeat_days\": [1, 3, 5],\n  \"end_condition\": \"after_occurrences\",\n  \"max_occurrences\": 30,\n  \"reminder_enabled\": true,\n  \"running_details\": {\n    \"activity_type\": \"jog\",\n    \"duration_minutes\": 30,\n    \"distance_km\": 5\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/schedules",
+              "host": ["{{base_url}}"],
+              "path": ["api", "schedules"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Sleep Schedule",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"schedule_type\": \"sleep\",\n  \"title\": \"Sleep Reminder\",\n  \"start_date\": \"2026-01-20\",\n  \"start_time\": \"22:00\",\n  \"repeat_type\": \"daily\",\n  \"end_condition\": \"never\",\n  \"reminder_enabled\": true,\n  \"reminder_mode\": \"both\",\n  \"sleep_details\": {\n    \"sleep_time\": \"22:00\",\n    \"wake_time\": \"06:00\",\n    \"target_duration_hours\": 8\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/schedules",
+              "host": ["{{base_url}}"],
+              "path": ["api", "schedules"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Custom Schedule",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"schedule_type\": \"custom\",\n  \"title\": \"Daily Meditation\",\n  \"start_date\": \"2026-01-20\",\n  \"start_time\": \"07:00\",\n  \"repeat_type\": \"daily\",\n  \"end_condition\": \"never\",\n  \"reminder_enabled\": true,\n  \"custom_details\": {\n    \"label\": \"Meditation\",\n    \"notes\": \"10 minutes of mindfulness\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/schedules",
+              "host": ["{{base_url}}"],
+              "path": ["api", "schedules"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Schedule",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated Schedule Title\",\n  \"start_time\": \"09:00\",\n  \"reminder_mode\": \"both\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/schedules/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "schedules", "1"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Schedule Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"paused\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/schedules/1/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "schedules", "1", "status"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Schedule",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/schedules/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "schedules", "1"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Schedule Logs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/schedules/1/logs?status=completed",
+              "host": ["{{base_url}}"],
+              "path": ["api", "schedules", "1", "logs"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "completed"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Mark Log as Completed",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notes\": \"Completed on time\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/schedules/logs/1/complete",
+              "host": ["{{base_url}}"],
+              "path": ["api", "schedules", "logs", "1", "complete"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get User History",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/schedules/history?type=medicine&status=completed",
+              "host": ["{{base_url}}"],
+              "path": ["api", "schedules", "history"],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "medicine"
+                },
+                {
+                  "key": "status",
+                  "value": "completed"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Completion Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/schedules/completion-stats?type=medicine",
+              "host": ["{{base_url}}"],
+              "path": ["api", "schedules", "completion-stats"],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "medicine"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/health",
+          "host": ["{{base_url}}"],
+          "path": ["api", "health"]
+        }
+      },
+      "response": []
+    }
+  ]
+}
