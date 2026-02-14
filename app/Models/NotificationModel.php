@@ -62,10 +62,9 @@ class NotificationModel extends Model
         $builder = $this->db->table('notification_users nu');
         $builder->select('
             n.*,
-            u.first_name,
-            u.last_name,
+            u.full_name,
             u.email,
-            u.profile_picture,
+            u.profile_img,
             nu.is_read,
             nu.read_at,
             nu.created_at as received_at
@@ -95,10 +94,9 @@ class NotificationModel extends Model
     {
         return $this->select('
             notifications.*,
-            users.first_name,
-            users.last_name,
+            users.full_name,
             users.email,
-            users.profile_picture
+            users.profile_img
         ')
             ->join('users', 'users.id = notifications.created_by')
             ->where('notifications.id', $notificationId)
