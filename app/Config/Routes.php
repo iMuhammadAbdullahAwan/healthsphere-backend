@@ -52,13 +52,9 @@ $routes->group('api', ['namespace' => 'App\Controllers\Api'], function ($routes)
         $routes->patch('notifications/mark-all-read', 'NotificationController::markAllAsRead');
         $routes->delete('notifications/(:num)', 'NotificationController::delete/$1');
 
-        // Schedule Routes
+        // Schedule Routes (use ?filter=today|upcoming|history for date filtering)
         $routes->get('schedules', 'ScheduleController::index');
-        $routes->get('schedules/today', 'ScheduleController::today');
-        $routes->get('schedules/upcoming', 'ScheduleController::upcoming');
-        $routes->get('schedules/stats', 'ScheduleController::stats');
-        $routes->get('schedules/history', 'ScheduleController::history');
-        $routes->get('schedules/completion-stats', 'ScheduleController::completionStats');
+        $routes->get('schedules/stats', 'ScheduleController::stats'); // use ?type=completion for completion stats
         $routes->get('schedules/(:num)', 'ScheduleController::show/$1');
         $routes->get('schedules/(:num)/logs', 'ScheduleController::getLogs/$1');
         $routes->post('schedules', 'ScheduleController::create');
@@ -66,6 +62,15 @@ $routes->group('api', ['namespace' => 'App\Controllers\Api'], function ($routes)
         $routes->put('schedules/(:num)', 'ScheduleController::update/$1');
         $routes->patch('schedules/(:num)/status', 'ScheduleController::updateStatus/$1');
         $routes->delete('schedules/(:num)', 'ScheduleController::delete/$1');
+
+        // Food Routes (AI-powered food analysis and logging)
+        $routes->get('food-logs', 'FoodController::index'); // ?meal_type=lunch&start_date=2024-01-01
+        $routes->get('food-logs/summary', 'FoodController::summary'); // ?start_date=...&end_date=...
+        $routes->get('food-logs/daily', 'FoodController::daily'); // ?days=7
+        $routes->get('food-logs/(:num)', 'FoodController::show/$1');
+        $routes->post('food-logs/analyze', 'FoodController::upload'); // Upload & analyze food image
+        $routes->put('food-logs/(:num)', 'FoodController::update/$1');
+        $routes->delete('food-logs/(:num)', 'FoodController::delete/$1');
     });
 });
 

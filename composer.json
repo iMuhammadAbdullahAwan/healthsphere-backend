@@ -14,6 +14,7 @@
         "cboden/ratchet": "^0.4.4",
         "codeigniter4/framework": "^4.0",
         "firebase/php-jwt": "^6.11",
+        "guzzlehttp/guzzle": "^7.10",
         "react/event-loop": "^1.6",
         "react/socket": "^1.17",
         "textalk/websocket": "^1.5"

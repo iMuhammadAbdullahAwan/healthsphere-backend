@@ -58,17 +58,41 @@ class ScheduleController extends BaseController
                 return sendApiResponse(null, 'User not authenticated', 401);
             }
 
-            // Get query parameters for filtering
-            $filters = [
-                'schedule_type' => $this->request->getGet('type'),
-                'status'        => $this->request->getGet('status'),
-                'start_date'    => $this->request->getGet('start_date'),
-                'end_date'      => $this->request->getGet('end_date'),
-            ];
+            // Check for filter parameter
+            $filter = $this->request->getGet('filter');
 
-            $schedules = $this->scheduleModel->getUserSchedules($this->current_user_id, $filters);
+            // Handle special filters
+            switch ($filter) {
+                case 'today':
+                    $schedules = $this->scheduleModel->getTodaySchedules($this->current_user_id);
+                    return sendApiResponse($schedules, 'Today\'s schedules retrieved successfully', 200);
 
-            return sendApiResponse($schedules, 'Schedules retrieved successfully', 200);
+                case 'upcoming':
+                    $days = $this->request->getGet('days') ?? 7;
+                    $schedules = $this->scheduleModel->getUpcomingSchedules($this->current_user_id, (int)$days);
+                    return sendApiResponse($schedules, 'Upcoming schedules retrieved successfully', 200);
+
+                case 'history':
+                    $historyFilters = [
+                        'schedule_type' => $this->request->getGet('type'),
+                        'status'        => $this->request->getGet('status'),
+                        'start_date'    => $this->request->getGet('start_date'),
+                        'end_date'      => $this->request->getGet('end_date'),
+                    ];
+                    $history = $this->scheduleLogModel->getUserHistory($this->current_user_id, $historyFilters);
+                    return sendApiResponse($history, 'Schedule history retrieved successfully', 200);
+
+                default:
+                    // Get all schedules with filters
+                    $filters = [
+                        'schedule_type' => $this->request->getGet('type'),
+                        'status'        => $this->request->getGet('status'),
+                        'start_date'    => $this->request->getGet('start_date'),
+                        'end_date'      => $this->request->getGet('end_date'),
+                    ];
+                    $schedules = $this->scheduleModel->getUserSchedules($this->current_user_id, $filters);
+                    return sendApiResponse($schedules, 'Schedules retrieved successfully', 200);
+            }
         } catch (\Throwable $e) {
             log_message('error', 'Get schedules error: ' . $e->getMessage());
             return sendApiResponse(null, 'Failed to retrieve schedules', 500);
@@ -123,7 +147,7 @@ class ScheduleController extends BaseController
 
     /**
      * Get schedule statistics
-     * GET /api/schedules/stats
+     * GET /api/schedules/stats?type=completion for completion stats
      *
      * @return ResponseInterface
      */
@@ -134,6 +158,25 @@ class ScheduleController extends BaseController
                 return sendApiResponse(null, 'User not authenticated', 401);
             }
 
+            // Check if completion stats requested
+            $type = $this->request->getGet('type');
+
+            if ($type === 'completion') {
+                $scheduleType = $this->request->getGet('schedule_type');
+                $startDate = $this->request->getGet('start_date');
+                $endDate = $this->request->getGet('end_date');
+
+                $stats = $this->scheduleLogModel->getCompletionStats(
+                    $this->current_user_id,
+                    $scheduleType,
+                    $startDate,
+                    $endDate
+                );
+
+                return sendApiResponse($stats, 'Completion statistics retrieved successfully', 200);
+            }
+
+            // Default: return count by type
             $stats = $this->scheduleModel->countByType($this->current_user_id);
 
             return sendApiResponse($stats, 'Schedule statistics retrieved successfully', 200);
@@ -212,7 +255,8 @@ class ScheduleController extends BaseController
 
             if (!$scheduleId) {
                 $errors = $this->scheduleModel->errors();
-                return sendApiResponse(null, $errors ?: 'Failed to create schedule', 400);
+                $errorMessage = !empty($errors) ? implode(', ', $errors) : 'Failed to create schedule';
+                return sendApiResponse(null, $errorMessage, 400);
             }
 
             // Get the created schedule
@@ -270,7 +314,8 @@ class ScheduleController extends BaseController
 
             if (!$updated) {
                 $errors = $this->scheduleModel->errors();
-                return sendApiResponse(null, $errors ?: 'Failed to update schedule', 400);
+                $errorMessage = !empty($errors) ? implode(', ', $errors) : 'Failed to update schedule';
+                return sendApiResponse(null, $errorMessage, 400);
             }
 
             // Get updated schedule

@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
     "name": "HealthSphere API",
-    "description": "Complete API collection for HealthSphere Backend with organized folders for Authentication, User Profile, Notifications, and Schedules features. Includes automatic token management and pre-configured requests for all endpoints.",
+    "description": "Complete API collection for HealthSphere Backend with organized folders for Authentication, User Profile, Notifications, Schedules, and Food Logs features. Includes automatic token management, consolidated endpoints with query parameters, and AI-powered food analysis. Updated Feb 2026.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "12345678"
   },
@@ -604,9 +604,15 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/schedules/today",
+              "raw": "{{base_url}}/api/schedules?filter=today",
               "host": ["{{base_url}}"],
-              "path": ["api", "schedules", "today"]
+              "path": ["api", "schedules"],
+              "query": [
+                {
+                  "key": "filter",
+                  "value": "today"
+                }
+              ]
             }
           },
           "response": []
@@ -622,10 +628,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/schedules/upcoming?days=7",
+              "raw": "{{base_url}}/api/schedules?filter=upcoming&days=7",
               "host": ["{{base_url}}"],
-              "path": ["api", "schedules", "upcoming"],
+              "path": ["api", "schedules"],
               "query": [
+                {
+                  "key": "filter",
+                  "value": "upcoming"
+                },
                 {
                   "key": "days",
                   "value": "7"
@@ -958,10 +968,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/schedules/history?type=medicine&status=completed",
+              "raw": "{{base_url}}/api/schedules?filter=history&type=medicine&status=completed",
               "host": ["{{base_url}}"],
-              "path": ["api", "schedules", "history"],
+              "path": ["api", "schedules"],
               "query": [
+                {
+                  "key": "filter",
+                  "value": "history"
+                },
                 {
                   "key": "type",
                   "value": "medicine"
@@ -986,15 +1000,231 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/schedules/completion-stats?type=medicine",
+              "raw": "{{base_url}}/api/schedules/stats?type=completion&schedule_type=medicine",
               "host": ["{{base_url}}"],
-              "path": ["api", "schedules", "completion-stats"],
+              "path": ["api", "schedules", "stats"],
               "query": [
                 {
                   "key": "type",
+                  "value": "completion"
+                },
+                {
+                  "key": "schedule_type",
                   "value": "medicine"
                 }
               ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Food Logs",
+      "item": [
+        {
+          "name": "Get All Food Logs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/food-logs",
+              "host": ["{{base_url}}"],
+              "path": ["api", "food-logs"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Food Logs (Filtered)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/food-logs?meal_type=lunch&start_date=2026-02-01&end_date=2026-02-14",
+              "host": ["{{base_url}}"],
+              "path": ["api", "food-logs"],
+              "query": [
+                {
+                  "key": "meal_type",
+                  "value": "lunch"
+                },
+                {
+                  "key": "start_date",
+                  "value": "2026-02-01"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2026-02-14"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Nutrition Summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/food-logs/summary?start_date=2026-02-01&end_date=2026-02-14",
+              "host": ["{{base_url}}"],
+              "path": ["api", "food-logs", "summary"],
+              "query": [
+                {
+                  "key": "start_date",
+                  "value": "2026-02-01"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2026-02-14"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Daily Breakdown",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/food-logs/daily?days=7",
+              "host": ["{{base_url}}"],
+              "path": ["api", "food-logs", "daily"],
+              "query": [
+                {
+                  "key": "days",
+                  "value": "7"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Single Food Log",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/food-logs/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "food-logs", "1"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Analyze Food Image",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "food_image",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "meal_type",
+                  "value": "lunch",
+                  "type": "text"
+                },
+                {
+                  "key": "consumed_at",
+                  "value": "2026-02-14 12:30:00",
+                  "type": "text"
+                },
+                {
+                  "key": "save_log",
+                  "value": "true",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/food-logs/analyze",
+              "host": ["{{base_url}}"],
+              "path": ["api", "food-logs", "analyze"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Food Log",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"food_name\": \"Updated Food Name\",\n  \"meal_type\": \"dinner\",\n  \"calories\": 450\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/food-logs/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "food-logs", "1"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Food Log",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/food-logs/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "food-logs", "1"]
             }
           },
           "response": []
