@@ -66,5 +66,40 @@ class DispatchScheduleReminders extends BaseCommand
         }
 
         CLI::write("Dispatched {$dispatched} reminder(s).", 'green');
+
+        // Archive stale pending logs as 'missed' (run as part of scheduler)
+        // Consider logs older than 1 hour as missed
+        $threshold = date('Y-m-d H:i:s', strtotime('-1 hour'));
+        $staleBuilder = $db->table('schedule_logs')
+            ->where('status', 'pending')
+            ->where('scheduled_for <=', $threshold);
+
+        $staleRows = $staleBuilder->get()->getResultArray();
+        $historyModel = new \App\Models\ScheduleHistoryModel();
+        $scheduleModel = new \App\Models\ScheduleModel();
+        $archived = 0;
+
+        foreach ($staleRows as $sr) {
+            $schedule = $scheduleModel->find($sr['schedule_id']);
+            $historyModel->insert([
+                'original_log_id' => $sr['id'],
+                'schedule_id' => $sr['schedule_id'],
+                'user_id' => $sr['user_id'],
+                'scheduled_for' => $sr['scheduled_for'],
+                'status' => 'missed',
+                'notes' => $sr['notes'] ?? null,
+                'notified_at' => $sr['notified_at'] ?? null,
+                'completed_at' => $sr['completed_at'] ?? null,
+                'schedule_snapshot' => $schedule ? json_encode($schedule) : null,
+                'archived_at' => date('Y-m-d H:i:s'),
+            ]);
+
+            $db->table('schedule_logs')->delete(['id' => $sr['id']]);
+            $archived++;
+        }
+
+        if ($archived > 0) {
+            CLI::write("Archived {$archived} stale pending log(s) as missed.", 'green');
+        }
     }
 }

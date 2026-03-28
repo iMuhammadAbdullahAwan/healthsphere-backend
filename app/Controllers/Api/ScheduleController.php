@@ -5,6 +5,7 @@ namespace App\Controllers\Api;
 use App\Controllers\BaseController;
 use App\Models\ScheduleModel;
 use App\Models\ScheduleLogModel;
+use App\Models\ScheduleHistoryModel;
 use App\Libraries\NotificationService;
 use CodeIgniter\HTTP\ResponseInterface;
 
@@ -36,6 +37,12 @@ class ScheduleController extends BaseController
      * @var ScheduleLogModel
      */
     protected $scheduleLogModel;
+    /**
+     * Schedule history model
+     *
+     * @var ScheduleHistoryModel
+     */
+    protected $scheduleHistoryModel;
 
     /**
      * Constructor - Initialize dependencies
@@ -44,6 +51,7 @@ class ScheduleController extends BaseController
     {
         $this->scheduleModel = new ScheduleModel();
         $this->scheduleLogModel = new ScheduleLogModel();
+        $this->scheduleHistoryModel = new ScheduleHistoryModel();
     }
 
     /**
@@ -84,7 +92,7 @@ class ScheduleController extends BaseController
                         'start_date'    => $this->request->getGet('start_date'),
                         'end_date'      => $this->request->getGet('end_date'),
                     ];
-                    $history = $this->scheduleLogModel->getUserHistory($this->current_user_id, $historyFilters, $page, $perPage);
+                    $history = $this->scheduleHistoryModel->getUserHistory($this->current_user_id, $historyFilters, $page, $perPage);
                     return sendApiResponse($history, 'Schedule history retrieved successfully', 200);
 
                 default:
@@ -536,11 +544,41 @@ class ScheduleController extends BaseController
                     ->first();
 
                 if (!$log) {
+                    $hist = $this->scheduleHistoryModel->where(['schedule_id' => (int)$id, 'user_id' => $this->current_user_id])
+                        ->where('DATE(scheduled_for)', $date)
+                        ->where('status', 'canceled')
+                        ->first();
+
+                    if ($hist) {
+                        return sendApiResponse($hist, 'Occurrence already canceled (archived)', 200);
+                    }
+
                     return sendApiResponse(null, 'Occurrence not found', 404);
                 }
 
-                $this->scheduleLogModel->markCanceled((int)$log['id'], $this->current_user_id);
-                return sendApiResponse(null, 'Occurrence canceled', 200);
+                // Archive the single log into schedule_history
+                $schedule = $this->scheduleModel->find($log['schedule_id']);
+                $historyData = [
+                    'original_log_id' => $log['id'],
+                    'schedule_id' => $log['schedule_id'],
+                    'user_id' => $log['user_id'],
+                    'scheduled_for' => $log['scheduled_for'],
+                    'status' => 'canceled',
+                    'notes' => $log['notes'] ?? null,
+                    'notified_at' => $log['notified_at'] ?? null,
+                    'completed_at' => $log['completed_at'] ?? null,
+                    'schedule_snapshot' => $schedule ? json_encode($schedule) : null,
+                    'archived_at' => date('Y-m-d H:i:s'),
+                ];
+
+                $this->scheduleHistoryModel->insert($historyData);
+                $histId = $this->scheduleHistoryModel->insertID();
+
+                // delete original log
+                $this->scheduleLogModel->delete($log['id']);
+
+                $archived = $this->scheduleHistoryModel->find($histId);
+                return sendApiResponse($archived, 'Occurrence canceled and archived', 200);
             }
 
             // scope = all => cancel entire schedule
@@ -580,17 +618,66 @@ class ScheduleController extends BaseController
                 if (!$date) {
                     return sendApiResponse(null, 'Date is required when scope=one', 400);
                 }
-
                 $log = $this->scheduleLogModel->where(['schedule_id' => (int)$id, 'user_id' => $this->current_user_id])
                     ->where('DATE(scheduled_for)', $date)
                     ->first();
 
-                if (!$log) {
+                if ($log) {
+                    // log exists; set status back to pending
+                    $this->scheduleLogModel->update($log['id'], [
+                        'status' => 'pending',
+                        'notified_at' => null,
+                        'completed_at' => null,
+                    ]);
+
+                    // Remove any matching archived canceled history for this occurrence
+                    $histRows = $this->scheduleHistoryModel
+                        ->where(['schedule_id' => (int)$id, 'user_id' => $this->current_user_id])
+                        ->where('DATE(scheduled_for)', $date)
+                        ->where('status', 'canceled')
+                        ->findAll();
+                    foreach ($histRows as $h) {
+                        $this->scheduleHistoryModel->delete($h['id']);
+                    }
+
+                    $restored = $this->scheduleLogModel->find($log['id']);
+                    return sendApiResponse($restored, 'Occurrence uncanceled', 200);
+                }
+
+                // Try to restore from history
+                $hist = $this->scheduleHistoryModel->where(['schedule_id' => (int)$id, 'user_id' => $this->current_user_id])
+                    ->where('DATE(scheduled_for)', $date)
+                    ->where('status', 'canceled')
+                    ->first();
+
+                if (!$hist) {
                     return sendApiResponse(null, 'Occurrence not found', 404);
                 }
 
-                $this->scheduleLogModel->unCancel((int)$log['id'], $this->current_user_id);
-                return sendApiResponse(null, 'Occurrence uncanceled', 200);
+                $insert = [
+                    'schedule_id' => $hist['schedule_id'],
+                    'user_id' => $hist['user_id'],
+                    'scheduled_for' => $hist['scheduled_for'],
+                    'status' => 'pending',
+                    'notes' => null,
+                    'notified_at' => null,
+                ];
+
+                $this->scheduleLogModel->insert($insert);
+                $newId = $this->scheduleLogModel->insertID();
+
+                // Remove matching archived canceled history for this occurrence
+                $histRows = $this->scheduleHistoryModel
+                    ->where(['schedule_id' => (int)$id, 'user_id' => $this->current_user_id])
+                    ->where('DATE(scheduled_for)', $date)
+                    ->where('status', 'canceled')
+                    ->findAll();
+                foreach ($histRows as $h) {
+                    $this->scheduleHistoryModel->delete($h['id']);
+                }
+
+                $restored = $this->scheduleLogModel->find($newId);
+                return sendApiResponse($restored, 'Occurrence uncanceled and restored', 200);
             }
 
             // scope = all => resume schedule
@@ -599,10 +686,243 @@ class ScheduleController extends BaseController
                 return sendApiResponse(null, 'Failed to uncancel schedule or not found', 400);
             }
 
+            // Restore archived canceled/completed occurrences for this schedule, then remove history rows.
+            $histRows = $this->scheduleHistoryModel
+                ->where(['schedule_id' => (int)$id, 'user_id' => $this->current_user_id])
+                ->whereIn('status', ['canceled', 'completed'])
+                ->findAll();
+
+            foreach ($histRows as $h) {
+                $existing = $this->scheduleLogModel
+                    ->where('schedule_id', $h['schedule_id'])
+                    ->where('user_id', $h['user_id'])
+                    ->where('scheduled_for', $h['scheduled_for'])
+                    ->first();
+
+                if (!$existing) {
+                    $this->scheduleLogModel->insert([
+                        'schedule_id' => $h['schedule_id'],
+                        'user_id' => $h['user_id'],
+                        'scheduled_for' => $h['scheduled_for'],
+                        'status' => 'pending',
+                        'notes' => null,
+                        'notified_at' => null,
+                    ]);
+                }
+
+                $this->scheduleHistoryModel->delete($h['id']);
+            }
+
             return sendApiResponse(null, 'Schedule uncanceled successfully', 200);
         } catch (\Throwable $e) {
             log_message('error', 'Uncancel schedule error: ' . $e->getMessage());
             return sendApiResponse(null, 'Failed to uncancel schedule', 500);
+        }
+    }
+
+    /**
+     * Mark a schedule (one occurrence or whole schedule) as done/completed
+     * POST /api/schedules/{id}/done
+     * body: { scope: 'one'|'all', date: 'YYYY-MM-DD' }
+     */
+    public function done($id = null): ResponseInterface
+    {
+        try {
+            if (!$this->current_user_id) {
+                return sendApiResponse(null, 'User not authenticated', 401);
+            }
+
+            if (!$id) {
+                return sendApiResponse(null, 'Schedule ID is required', 400);
+            }
+
+            $data = $this->request->getJSON(true) ?? [];
+            $scope = $data['scope'] ?? 'all';
+
+            if ($scope === 'one') {
+                $date = $data['date'] ?? null;
+                if (!$date) {
+                    return sendApiResponse(null, 'Date is required when scope=one', 400);
+                }
+
+                $log = $this->scheduleLogModel->where(['schedule_id' => (int)$id, 'user_id' => $this->current_user_id])
+                    ->where('DATE(scheduled_for)', $date)
+                    ->first();
+
+                if (!$log) {
+                    $hist = $this->scheduleHistoryModel->where(['schedule_id' => (int)$id, 'user_id' => $this->current_user_id])
+                        ->where('DATE(scheduled_for)', $date)
+                        ->where('status', 'completed')
+                        ->first();
+
+                    if ($hist) {
+                        return sendApiResponse($hist, 'Occurrence already completed (archived)', 200);
+                    }
+
+                    return sendApiResponse(null, 'Occurrence not found', 404);
+                }
+
+                $schedule = $this->scheduleModel->find($log['schedule_id']);
+                $historyData = [
+                    'original_log_id' => $log['id'],
+                    'schedule_id' => $log['schedule_id'],
+                    'user_id' => $log['user_id'],
+                    'scheduled_for' => $log['scheduled_for'],
+                    'status' => 'completed',
+                    'notes' => $log['notes'] ?? null,
+                    'notified_at' => $log['notified_at'] ?? null,
+                    'completed_at' => date('Y-m-d H:i:s'),
+                    'schedule_snapshot' => $schedule ? json_encode($schedule) : null,
+                    'archived_at' => date('Y-m-d H:i:s'),
+                ];
+
+                $this->scheduleHistoryModel->insert($historyData);
+                $histId = $this->scheduleHistoryModel->insertID();
+
+                $this->scheduleLogModel->delete($log['id']);
+
+                $archived = $this->scheduleHistoryModel->find($histId);
+                return sendApiResponse($archived, 'Occurrence marked done and archived', 200);
+            }
+
+            // scope = all => mark schedule completed
+            $updated = $this->scheduleModel->updateStatus((int)$id, $this->current_user_id, 'completed');
+            if (!$updated) {
+                return sendApiResponse(null, 'Failed to mark schedule done or not found', 400);
+            }
+
+            return sendApiResponse(null, 'Schedule marked completed successfully', 200);
+        } catch (\Throwable $e) {
+            log_message('error', 'Done schedule error: ' . $e->getMessage());
+            return sendApiResponse(null, 'Failed to mark schedule done', 500);
+        }
+    }
+
+    /**
+     * Undo a done/completed schedule (one occurrence or whole schedule)
+     * POST /api/schedules/{id}/undone
+     * body: { scope: 'one'|'all', date: 'YYYY-MM-DD' }
+     */
+    public function undone($id = null): ResponseInterface
+    {
+        try {
+            if (!$this->current_user_id) {
+                return sendApiResponse(null, 'User not authenticated', 401);
+            }
+
+            if (!$id) {
+                return sendApiResponse(null, 'Schedule ID is required', 400);
+            }
+
+            $data = $this->request->getJSON(true) ?? [];
+            $scope = $data['scope'] ?? 'all';
+
+            if ($scope === 'one') {
+                $date = $data['date'] ?? null;
+                if (!$date) {
+                    return sendApiResponse(null, 'Date is required when scope=one', 400);
+                }
+
+                $log = $this->scheduleLogModel->where(['schedule_id' => (int)$id, 'user_id' => $this->current_user_id])
+                    ->where('DATE(scheduled_for)', $date)
+                    ->first();
+
+                if ($log) {
+                    // If a log already exists, set it back to pending
+                    $this->scheduleLogModel->update($log['id'], [
+                        'status' => 'pending',
+                        'completed_at' => null,
+                        'notes' => null,
+                        'notified_at' => null,
+                    ]);
+
+                    // Remove any matching archived completed history for this occurrence
+                    $histRows = $this->scheduleHistoryModel
+                        ->where(['schedule_id' => (int)$id, 'user_id' => $this->current_user_id])
+                        ->where('DATE(scheduled_for)', $date)
+                        ->where('status', 'completed')
+                        ->findAll();
+                    foreach ($histRows as $h) {
+                        $this->scheduleHistoryModel->delete($h['id']);
+                    }
+
+                    $restored = $this->scheduleLogModel->find($log['id']);
+                    return sendApiResponse($restored, 'Occurrence restored to pending', 200);
+                }
+
+                // Try to restore from history
+                $hist = $this->scheduleHistoryModel->where(['schedule_id' => (int)$id, 'user_id' => $this->current_user_id])
+                    ->where('DATE(scheduled_for)', $date)
+                    ->where('status', 'completed')
+                    ->first();
+
+                if (!$hist) {
+                    return sendApiResponse(null, 'Occurrence not found', 404);
+                }
+
+                $insert = [
+                    'schedule_id' => $hist['schedule_id'],
+                    'user_id' => $hist['user_id'],
+                    'scheduled_for' => $hist['scheduled_for'],
+                    'status' => 'pending',
+                    'notes' => null,
+                    'notified_at' => null,
+                ];
+
+                $this->scheduleLogModel->insert($insert);
+                $newId = $this->scheduleLogModel->insertID();
+
+                // Remove matching archived completed history for this occurrence
+                $histRows = $this->scheduleHistoryModel
+                    ->where(['schedule_id' => (int)$id, 'user_id' => $this->current_user_id])
+                    ->where('DATE(scheduled_for)', $date)
+                    ->where('status', 'completed')
+                    ->findAll();
+                foreach ($histRows as $h) {
+                    $this->scheduleHistoryModel->delete($h['id']);
+                }
+
+                $restored = $this->scheduleLogModel->find($newId);
+                return sendApiResponse($restored, 'Occurrence restored from history to pending', 200);
+            }
+
+            // scope = all => set schedule back to active
+            $updated = $this->scheduleModel->updateStatus((int)$id, $this->current_user_id, 'active');
+            if (!$updated) {
+                return sendApiResponse(null, 'Failed to undo completed schedule or not found', 400);
+            }
+
+            // Restore archived completed occurrences for this schedule, then remove history rows.
+            $histRows = $this->scheduleHistoryModel
+                ->where(['schedule_id' => (int)$id, 'user_id' => $this->current_user_id])
+                ->where('status', 'completed')
+                ->findAll();
+
+            foreach ($histRows as $h) {
+                $existing = $this->scheduleLogModel
+                    ->where('schedule_id', $h['schedule_id'])
+                    ->where('user_id', $h['user_id'])
+                    ->where('scheduled_for', $h['scheduled_for'])
+                    ->first();
+
+                if (!$existing) {
+                    $this->scheduleLogModel->insert([
+                        'schedule_id' => $h['schedule_id'],
+                        'user_id' => $h['user_id'],
+                        'scheduled_for' => $h['scheduled_for'],
+                        'status' => 'pending',
+                        'notes' => null,
+                        'notified_at' => null,
+                    ]);
+                }
+
+                $this->scheduleHistoryModel->delete($h['id']);
+            }
+
+            return sendApiResponse(null, 'Schedule restored to active', 200);
+        } catch (\Throwable $e) {
+            log_message('error', 'Undone schedule error: ' . $e->getMessage());
+            return sendApiResponse(null, 'Failed to restore schedule', 500);
         }
     }
 
@@ -621,14 +941,42 @@ class ScheduleController extends BaseController
                 return sendApiResponse(null, 'Log ID is required', 400);
             }
 
-            $updated = $this->scheduleLogModel->undoCompleted((int)$logId, $this->current_user_id);
+            // direct restore: if log exists and marked completed, revert; otherwise restore from history
+            $log = $this->scheduleLogModel->where(['id' => (int)$logId, 'user_id' => $this->current_user_id])->first();
 
-            if (!$updated) {
+            if ($log) {
+                // if exists, update back to pending
+                $this->scheduleLogModel->update($log['id'], [
+                    'status' => 'pending',
+                    'completed_at' => null,
+                    'notes' => null,
+                ]);
+
+                $updated = $this->scheduleLogModel->find($log['id']);
+                return sendApiResponse($updated, 'Log undone to pending', 200);
+            }
+
+            // try restore from history
+            $hist = $this->scheduleHistoryModel->where(['original_log_id' => (int)$logId, 'user_id' => $this->current_user_id])->first();
+            if (!$hist) {
                 return sendApiResponse(null, 'Failed to undo or log not found', 400);
             }
 
-            $log = $this->scheduleLogModel->find($logId);
-            return sendApiResponse($log, 'Log undone to pending', 200);
+            $insert = [
+                'schedule_id' => $hist['schedule_id'],
+                'user_id' => $hist['user_id'],
+                'scheduled_for' => $hist['scheduled_for'],
+                'status' => 'pending',
+                'notes' => null,
+                'notified_at' => null,
+            ];
+
+            $this->scheduleLogModel->insert($insert);
+            $newId = $this->scheduleLogModel->insertID();
+            $this->scheduleHistoryModel->delete($hist['id']);
+
+            $restored = $this->scheduleLogModel->find($newId);
+            return sendApiResponse($restored, 'Log restored to pending', 200);
         } catch (\Throwable $e) {
             log_message('error', 'Undo schedule log error: ' . $e->getMessage());
             return sendApiResponse(null, 'Failed to undo schedule log', 500);
@@ -785,15 +1133,40 @@ class ScheduleController extends BaseController
             $data = $this->request->getJSON(true);
             $notes = $data['notes'] ?? null;
 
-            $updated = $this->scheduleLogModel->markCompleted((int)$logId, $this->current_user_id, $notes);
+            // operate directly: archive log into schedule_history and remove original
+            $log = $this->scheduleLogModel->where(['id' => (int)$logId, 'user_id' => $this->current_user_id])->first();
 
-            if (!$updated) {
-                return sendApiResponse(null, 'Failed to mark as completed or log not found', 400);
+            if (!$log) {
+                // maybe already archived
+                $hist = $this->scheduleHistoryModel->where(['original_log_id' => (int)$logId, 'user_id' => $this->current_user_id])->first();
+                if ($hist) {
+                    return sendApiResponse($hist, 'Occurrence already archived', 200);
+                }
+
+                return sendApiResponse(null, 'Log not found', 404);
             }
 
-            $log = $this->scheduleLogModel->find($logId);
+            $schedule = $this->scheduleModel->find($log['schedule_id']);
+            $historyData = [
+                'original_log_id' => $log['id'],
+                'schedule_id' => $log['schedule_id'],
+                'user_id' => $log['user_id'],
+                'scheduled_for' => $log['scheduled_for'],
+                'status' => 'completed',
+                'notes' => $notes ?? $log['notes'] ?? null,
+                'notified_at' => $log['notified_at'] ?? null,
+                'completed_at' => date('Y-m-d H:i:s'),
+                'schedule_snapshot' => $schedule ? json_encode($schedule) : null,
+                'archived_at' => date('Y-m-d H:i:s'),
+            ];
 
-            return sendApiResponse($log, 'Schedule marked as completed', 200);
+            $this->scheduleHistoryModel->insert($historyData);
+            $histId = $this->scheduleHistoryModel->insertID();
+
+            $this->scheduleLogModel->delete($log['id']);
+
+            $archived = $this->scheduleHistoryModel->find($histId);
+            return sendApiResponse($archived, 'Schedule occurrence completed and archived', 200);
         } catch (\Throwable $e) {
             log_message('error', 'Complete schedule log error: ' . $e->getMessage());
             return sendApiResponse(null, 'Failed to mark schedule as completed', 500);
@@ -823,7 +1196,7 @@ class ScheduleController extends BaseController
             $page = (int) ($this->request->getGet('page') ?? 1);
             $perPage = (int) ($this->request->getGet('per_page') ?? 20);
 
-            $history = $this->scheduleLogModel->getUserHistory($this->current_user_id, $filters, $page, $perPage);
+            $history = $this->scheduleHistoryModel->getUserHistory($this->current_user_id, $filters, $page, $perPage);
 
             return sendApiResponse($history, 'Schedule history retrieved successfully', 200);
         } catch (\Throwable $e) {

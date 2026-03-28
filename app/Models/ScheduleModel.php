@@ -349,10 +349,59 @@ class ScheduleModel extends Model
             return false;
         }
 
-        return $this->where([
+        $updated = $this->where([
             'id'      => $scheduleId,
             'user_id' => $userId,
         ])->set('status', $status)->update();
+
+        // If this is a terminal status, archive schedule logs into schedule_history
+        if ($updated && in_array($status, ['completed', 'canceled'], true)) {
+            try {
+                $historyModel = new \App\Models\ScheduleHistoryModel();
+                $logModel = new \App\Models\ScheduleLogModel();
+
+                $schedule = $this->find($scheduleId);
+
+                // Move all existing logs for this schedule into history
+                $logs = $logModel->where('schedule_id', $scheduleId)->findAll();
+                if (!empty($logs)) {
+                    foreach ($logs as $l) {
+                        $historyModel->insert([
+                            'original_log_id' => $l['id'],
+                            'schedule_id' => $l['schedule_id'],
+                            'user_id' => $l['user_id'],
+                            'scheduled_for' => $l['scheduled_for'],
+                            'status' => $status,
+                            'notes' => $l['notes'] ?? null,
+                            'notified_at' => $l['notified_at'] ?? null,
+                            'completed_at' => $l['completed_at'] ?? null,
+                            'schedule_snapshot' => $schedule ? json_encode($schedule) : null,
+                            'archived_at' => date('Y-m-d H:i:s'),
+                        ]);
+                        $logModel->delete($l['id']);
+                    }
+                } else {
+                    // No generated logs: create a single history entry representing the schedule
+                    $historyModel->insert([
+                        'original_log_id' => null,
+                        'schedule_id' => $scheduleId,
+                        'user_id' => $userId,
+                        'scheduled_for' => $schedule['start_date'] . ' ' . ($schedule['start_time'] ?? '00:00') . ':00',
+                        'status' => $status,
+                        'notes' => null,
+                        'notified_at' => null,
+                        'completed_at' => ($status === 'completed') ? date('Y-m-d H:i:s') : null,
+                        'schedule_snapshot' => $schedule ? json_encode($schedule) : null,
+                        'archived_at' => date('Y-m-d H:i:s'),
+                    ]);
+                }
+            } catch (\Throwable $e) {
+                // log and continue; schedule status was updated even if archiving failed
+                log_message('error', 'Failed to archive schedule on status change: ' . $e->getMessage());
+            }
+        }
+
+        return $updated;
     }
 
     /**

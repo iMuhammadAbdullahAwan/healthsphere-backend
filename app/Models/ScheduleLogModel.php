@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use CodeIgniter\Model;
+use App\Models\ScheduleHistoryModel;
+use App\Models\ScheduleModel;
 
 class ScheduleLogModel extends Model
 {
@@ -127,6 +129,12 @@ class ScheduleLogModel extends Model
      */
     public function markCompleted(int $logId, int $userId, ?string $notes = null)
     {
+        // Find the existing log
+        $log = $this->where(['id' => $logId, 'user_id' => $userId])->first();
+        if (!$log) {
+            return false;
+        }
+
         $data = [
             'status'       => 'completed',
             'completed_at' => date('Y-m-d H:i:s'),
@@ -136,10 +144,36 @@ class ScheduleLogModel extends Model
             $data['notes'] = $notes;
         }
 
-        return $this->where([
-            'id'      => $logId,
-            'user_id' => $userId,
-        ])->set($data)->update();
+        $updated = $this->where(['id' => $logId, 'user_id' => $userId])->set($data)->update();
+        if (!$updated) {
+            return false;
+        }
+
+        // Archive to history and remove original log
+        $historyModel = new ScheduleHistoryModel();
+        $scheduleModel = new ScheduleModel();
+        $schedule = $scheduleModel->find($log['schedule_id']);
+
+        $historyData = [
+            'original_log_id' => $logId,
+            'schedule_id' => $log['schedule_id'],
+            'user_id' => $log['user_id'],
+            'scheduled_for' => $log['scheduled_for'],
+            'status' => 'completed',
+            'notes' => $data['notes'] ?? $log['notes'] ?? null,
+            'notified_at' => $log['notified_at'] ?? null,
+            'completed_at' => $data['completed_at'],
+            'schedule_snapshot' => $schedule ? json_encode($schedule) : null,
+            'archived_at' => date('Y-m-d H:i:s'),
+        ];
+
+        $historyModel->insert($historyData);
+        $historyId = $historyModel->insertID();
+
+        // remove original log (we no longer keep history in schedule_logs)
+        $this->delete($logId);
+
+        return $historyModel->find($historyId);
     }
 
     /**
@@ -147,6 +181,11 @@ class ScheduleLogModel extends Model
      */
     public function markCanceled(int $logId, int $userId, ?string $notes = null)
     {
+        $log = $this->where(['id' => $logId, 'user_id' => $userId])->first();
+        if (!$log) {
+            return false;
+        }
+
         $data = [
             'status' => 'canceled',
         ];
@@ -155,10 +194,34 @@ class ScheduleLogModel extends Model
             $data['notes'] = $notes;
         }
 
-        return $this->where([
-            'id'      => $logId,
-            'user_id' => $userId,
-        ])->set($data)->update();
+        $updated = $this->where(['id' => $logId, 'user_id' => $userId])->set($data)->update();
+        if (!$updated) {
+            return false;
+        }
+
+        $historyModel = new ScheduleHistoryModel();
+        $scheduleModel = new ScheduleModel();
+        $schedule = $scheduleModel->find($log['schedule_id']);
+
+        $historyData = [
+            'original_log_id' => $logId,
+            'schedule_id' => $log['schedule_id'],
+            'user_id' => $log['user_id'],
+            'scheduled_for' => $log['scheduled_for'],
+            'status' => 'canceled',
+            'notes' => $data['notes'] ?? $log['notes'] ?? null,
+            'notified_at' => $log['notified_at'] ?? null,
+            'completed_at' => $log['completed_at'] ?? null,
+            'schedule_snapshot' => $schedule ? json_encode($schedule) : null,
+            'archived_at' => date('Y-m-d H:i:s'),
+        ];
+
+        $historyModel->insert($historyData);
+        $historyId = $historyModel->insertID();
+
+        $this->delete($logId);
+
+        return $historyModel->find($historyId);
     }
 
     /**
@@ -166,14 +229,39 @@ class ScheduleLogModel extends Model
      */
     public function unCancel(int $logId, int $userId)
     {
-        return $this->where([
-            'id'      => $logId,
-            'user_id' => $userId,
-        ])->set([
+        // If original log still exists, just set it back to pending
+        $existing = $this->where(['id' => $logId, 'user_id' => $userId])->first();
+        if ($existing) {
+            return $this->where(['id' => $logId, 'user_id' => $userId])->set([
+                'status' => 'pending',
+                'notified_at' => null,
+                'completed_at' => null,
+            ])->update();
+        }
+
+        // Otherwise, try to restore from history
+        $historyModel = new ScheduleHistoryModel();
+        $hist = $historyModel->where(['original_log_id' => $logId, 'user_id' => $userId])->first();
+        if (!$hist) {
+            return false;
+        }
+
+        // restore back to schedule_logs
+        $insert = [
+            'schedule_id' => $hist['schedule_id'],
+            'user_id' => $hist['user_id'],
+            'scheduled_for' => $hist['scheduled_for'],
             'status' => 'pending',
+            'notes' => null,
             'notified_at' => null,
-            'completed_at' => null,
-        ])->update();
+        ];
+
+        $this->insert($insert);
+        $newId = $this->insertID();
+        // remove history
+        $historyModel->delete($hist['id']);
+
+        return $this->find($newId);
     }
 
     /**
@@ -181,14 +269,37 @@ class ScheduleLogModel extends Model
      */
     public function undoCompleted(int $logId, int $userId)
     {
-        return $this->where([
-            'id'      => $logId,
-            'user_id' => $userId,
-        ])->set([
+        // If original log exists, revert it
+        $existing = $this->where(['id' => $logId, 'user_id' => $userId])->first();
+        if ($existing) {
+            return $this->where(['id' => $logId, 'user_id' => $userId])->set([
+                'status' => 'pending',
+                'completed_at' => null,
+                'notes' => null,
+            ])->update();
+        }
+
+        // Otherwise, restore from history
+        $historyModel = new ScheduleHistoryModel();
+        $hist = $historyModel->where(['original_log_id' => $logId, 'user_id' => $userId])->first();
+        if (!$hist) {
+            return false;
+        }
+
+        $insert = [
+            'schedule_id' => $hist['schedule_id'],
+            'user_id' => $hist['user_id'],
+            'scheduled_for' => $hist['scheduled_for'],
             'status' => 'pending',
-            'completed_at' => null,
             'notes' => null,
-        ])->update();
+            'notified_at' => null,
+        ];
+
+        $this->insert($insert);
+        $newId = $this->insertID();
+        $historyModel->delete($hist['id']);
+
+        return $this->find($newId);
     }
 
     /**

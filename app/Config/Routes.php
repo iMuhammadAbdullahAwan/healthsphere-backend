@@ -64,6 +64,9 @@ $routes->group('api', ['namespace' => 'App\Controllers\Api'], function ($routes)
         // Cancel / Uncancel endpoints
         $routes->post('schedules/(:num)/cancel', 'ScheduleController::cancel/$1');
         $routes->post('schedules/(:num)/uncancel', 'ScheduleController::uncancel/$1');
+        // Done / Undone endpoints
+        $routes->post('schedules/(:num)/done', 'ScheduleController::done/$1');
+        $routes->post('schedules/(:num)/undone', 'ScheduleController::undone/$1');
         // Undo completed log
         $routes->post('schedules/logs/(:num)/undo', 'ScheduleController::undoLog/$1');
         $routes->delete('schedules/(:num)', 'ScheduleController::delete/$1');
