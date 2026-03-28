@@ -21,6 +21,7 @@ This document describes schedule and schedule_log statuses, common scenarios (ca
   - GET /api/schedules
   - Query params: `page` (int), `per_page` (int), `filter` (today|upcoming|history), `type` (medicine|food|water|running|sleep|custom), `status` (active|paused|completed|canceled), `start_date` (YYYY-MM-DD), `end_date` (YYYY-MM-DD)
   - Example: `/api/schedules?filter=upcoming&days=7&page=1&per_page=20`
+  - Search: add `q` to search by schedule title (e.g. `?q=morning`).
 
 - **Get schedule stats (completion report)**
   - GET /api/schedules/stats?type=completion&schedule_type=medicine&start_date=YYYY-MM-DD&end_date=YYYY-MM-DD

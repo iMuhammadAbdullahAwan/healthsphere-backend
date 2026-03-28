@@ -94,6 +94,7 @@ class ScheduleController extends BaseController
                         'status'        => $this->request->getGet('status'),
                         'start_date'    => $this->request->getGet('start_date'),
                         'end_date'      => $this->request->getGet('end_date'),
+                        'q'             => $this->request->getGet('q'), // search query for title
                     ];
                     $schedules = $this->scheduleModel->getUserSchedules($this->current_user_id, $filters, $page, $perPage);
                     return sendApiResponse($schedules, 'Schedules retrieved successfully', 200);

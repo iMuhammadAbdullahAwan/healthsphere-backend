@@ -215,6 +215,11 @@ class ScheduleModel extends Model
             $builder->where('start_date <=', $filters['end_date']);
         }
 
+        // Search by title
+        if (!empty($filters['q'])) {
+            $builder->like('title', $filters['q']);
+        }
+
         // Count total
         $countBuilder = clone $builder;
         $total = (int) $countBuilder->countAllResults();
