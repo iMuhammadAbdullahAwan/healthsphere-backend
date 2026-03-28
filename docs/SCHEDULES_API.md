@@ -33,6 +33,11 @@ This document describes schedule and schedule_log statuses, common scenarios (ca
 - **Create schedule**
   - POST /api/schedules
   - Body: JSON with schedule fields (see backend validation in `ScheduleModel`).
+  - File upload (image): The API accepts multipart/form-data for image uploads. Send a form field named `payload` containing the JSON body, and a file field named `image`.
+    Example using form-data:
+    - `payload`: `{ "title": "Morning Medication", "schedule_type": "medicine", "medicine_details": { ... } }`
+    - `image`: (file) `morning_med.png`
+  - Stored path: uploaded files are saved under `writable/uploads/schedules/` and the `image` field will contain a relative path like `writable/uploads/schedules/<filename>`.
 
 - **Update schedule**
   - PUT /api/schedules/{id}

@@ -80,6 +80,7 @@
           },
           "response": []
         },
+
         {
           "name": "Login with Email & Password",
           "event": [
@@ -698,6 +699,79 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"schedule_type\": \"medicine\",\n  \"title\": \"Morning Medication\",\n  \"description\": \"Blood pressure medication\",\n  \"start_date\": \"2026-01-20\",\n  \"start_time\": \"08:00\",\n  \"repeat_type\": \"daily\",\n  \"end_condition\": \"never\",\n  \"reminder_enabled\": true,\n  \"reminder_mode\": \"notification\",\n  \"medicine_details\": {\n    \"medicine_name\": \"Lisinopril\",\n    \"dosage_text\": \"10mg tablet\",\n    \"instructions\": \"Take with water\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/schedules",
+              "host": ["{{base_url}}"],
+              "path": ["api", "schedules"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Schedule (with image upload)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "schedule_type",
+                  "value": "medicine",
+                  "type": "text"
+                },
+                {
+                  "key": "title",
+                  "value": "Morning Medication",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "value": "Blood pressure medication",
+                  "type": "text"
+                },
+                {
+                  "key": "start_date",
+                  "value": "2026-03-28",
+                  "type": "text"
+                },
+                {
+                  "key": "start_time",
+                  "value": "08:00",
+                  "type": "text"
+                },
+                {
+                  "key": "repeat_type",
+                  "value": "daily",
+                  "type": "text"
+                },
+                {
+                  "key": "medicine_details",
+                  "value": "{\"medicine_name\":\"Lisinopril\",\"dosage_text\":\"10mg\"}",
+                  "type": "text"
+                },
+                {
+                  "key": "reminder_enabled",
+                  "value": "true",
+                  "type": "text"
+                },
+                {
+                  "key": "reminder_mode",
+                  "value": "notification",
+                  "type": "text"
+                },
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": []
+                }
+              ]
             },
             "url": {
               "raw": "{{base_url}}/api/schedules",

@@ -34,6 +34,7 @@ class ScheduleModel extends Model
         'running_details',
         'sleep_details',
         'custom_details',
+        'image',
     ];
 
     // Dates
@@ -55,6 +56,7 @@ class ScheduleModel extends Model
         'reminder_enabled' => 'permit_empty|in_list[0,1]',
         'reminder_mode'  => 'permit_empty|in_list[notification,voice,both]',
         'status'         => 'permit_empty|in_list[active,paused,completed,canceled]',
+        'image'          => 'permit_empty|string|max_length[255]',
     ];
 
     protected $validationMessages = [

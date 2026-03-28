@@ -241,10 +241,28 @@ class ScheduleController extends BaseController
                 return sendApiResponse(null, 'User not authenticated', 401);
             }
 
-            $data = $this->request->getJSON(true);
+            // Support both JSON bodies and multipart/form-data uploads.
+            // For multipart uploads, the client should send a `payload` form field containing the JSON body,
+            // and an `image` file field for the image file.
+            $data = null;
+            $file = $this->request->getFile('image');
 
-            if (!$data) {
-                return sendApiResponse(null, 'Invalid JSON data', 400);
+            if ($this->request->getPost() || ($file && $file->isValid())) {
+                $payload = $this->request->getPost('payload') ?? null;
+                if ($payload) {
+                    $data = json_decode($payload, true);
+                    if (!is_array($data)) {
+                        return sendApiResponse(null, 'Invalid JSON in payload field', 400);
+                    }
+                } else {
+                    $data = $this->request->getPost();
+                }
+            } else {
+                $data = $this->request->getJSON(true);
+            }
+
+            if (!$data || !is_array($data)) {
+                return sendApiResponse(null, 'Invalid request data', 400);
             }
 
             // Add user_id to data
@@ -256,12 +274,54 @@ class ScheduleController extends BaseController
             $data['reminder_mode'] = $data['reminder_mode'] ?? 'notification';
 
             // Validate required fields based on schedule type
+            // If any detail fields were provided as JSON strings in form-data, decode them into arrays
+            $detailFields = [
+                'medicine_details',
+                'food_details',
+                'water_details',
+                'running_details',
+                'sleep_details',
+                'custom_details'
+            ];
+            foreach ($detailFields as $df) {
+                if (isset($data[$df]) && is_string($data[$df])) {
+                    $decoded = json_decode($data[$df], true);
+                    if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                        $data[$df] = $decoded;
+                    } else {
+                        return sendApiResponse(null, "Invalid JSON for {$df}", 400);
+                    }
+                }
+            }
+
             $validationError = $this->validateTypeSpecificData($data);
             if ($validationError) {
                 return sendApiResponse(null, $validationError, 400);
             }
 
             // Insert schedule
+            // Handle uploaded image file (multipart/form-data). If a file is provided move it to writable/uploads/schedules/
+            if ($file && $file->isValid() && !$file->hasMoved()) {
+                $uploadPath = WRITEPATH . 'uploads' . DIRECTORY_SEPARATOR . 'schedules';
+                if (!is_dir($uploadPath)) {
+                    mkdir($uploadPath, 0755, true);
+                }
+                $newName = $file->getRandomName();
+                try {
+                    $file->move($uploadPath, $newName);
+                    // Store a web-servable relative path so frontend can request it: writable/uploads/schedules/<name>
+                    $data['image'] = 'writable/uploads/schedules/' . $newName;
+                } catch (\Throwable $e) {
+                    log_message('error', 'Schedule image upload failed: ' . $e->getMessage());
+                    return sendApiResponse(null, 'Failed to upload image', 500);
+                }
+            } else {
+                // Allow image field (optional) if present in JSON or form-data; normalize empty to null
+                if (isset($data['image']) && empty($data['image'])) {
+                    $data['image'] = null;
+                }
+            }
+
             $scheduleId = $this->scheduleModel->insert($data);
 
             if (!$scheduleId) {
@@ -318,19 +378,72 @@ class ScheduleController extends BaseController
                 return sendApiResponse(null, 'Schedule not found', 404);
             }
 
-            $data = $this->request->getJSON(true);
-            if (!$data) {
-                return sendApiResponse(null, 'Invalid JSON data', 400);
+            // Support both JSON bodies and multipart/form-data uploads for updates as well.
+            $data = null;
+            $file = $this->request->getFile('image');
+
+            if ($this->request->getPost() || ($file && $file->isValid())) {
+                $payload = $this->request->getPost('payload') ?? null;
+                if ($payload) {
+                    $data = json_decode($payload, true);
+                    if (!is_array($data)) {
+                        return sendApiResponse(null, 'Invalid JSON in payload field', 400);
+                    }
+                } else {
+                    $data = $this->request->getPost();
+                }
+            } else {
+                $data = $this->request->getJSON(true);
+            }
+
+            if (!$data || !is_array($data)) {
+                return sendApiResponse(null, 'Invalid request data', 400);
             }
 
             // Prevent changing user_id
             unset($data['user_id']);
+
+            // Handle uploaded image file for update (multipart/form-data)
+            if ($file && $file->isValid() && !$file->hasMoved()) {
+                $uploadPath = WRITEPATH . 'uploads' . DIRECTORY_SEPARATOR . 'schedules';
+                if (!is_dir($uploadPath)) {
+                    mkdir($uploadPath, 0755, true);
+                }
+                $newName = $file->getRandomName();
+                try {
+                    $file->move($uploadPath, $newName);
+                    $data['image'] = 'writable/uploads/schedules/' . $newName;
+                } catch (\Throwable $e) {
+                    log_message('error', 'Schedule image upload failed on update: ' . $e->getMessage());
+                    return sendApiResponse(null, 'Failed to upload image', 500);
+                }
+            }
 
             // Validate type-specific data if schedule_type is being changed
             if (isset($data['schedule_type'])) {
                 $validationError = $this->validateTypeSpecificData($data);
                 if ($validationError) {
                     return sendApiResponse(null, $validationError, 400);
+                }
+            }
+
+            // If any detail fields were provided as JSON strings in form-data for update, decode them
+            $detailFields = [
+                'medicine_details',
+                'food_details',
+                'water_details',
+                'running_details',
+                'sleep_details',
+                'custom_details'
+            ];
+            foreach ($detailFields as $df) {
+                if (isset($data[$df]) && is_string($data[$df])) {
+                    $decoded = json_decode($data[$df], true);
+                    if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                        $data[$df] = $decoded;
+                    } else {
+                        return sendApiResponse(null, "Invalid JSON for {$df}", 400);
+                    }
                 }
             }
 
