@@ -77,7 +77,7 @@ class ScheduleLogModel extends Model
     /**
      * Get user's completion history
      */
-    public function getUserHistory(int $userId, array $filters = [])
+    public function getUserHistory(int $userId, array $filters = [], int $page = 1, int $perPage = 20)
     {
         $builder = $this->select('schedule_logs.*, schedules.title, schedules.schedule_type')
             ->join('schedules', 'schedules.id = schedule_logs.schedule_id')
@@ -99,7 +99,26 @@ class ScheduleLogModel extends Model
             $builder->where('schedule_logs.scheduled_for <=', $filters['end_date']);
         }
 
-        return $builder->orderBy('schedule_logs.scheduled_for', 'DESC')->findAll();
+        $countBuilder = clone $builder;
+        $total = (int) $countBuilder->countAllResults();
+
+        $offset = max(0, ($page - 1) * $perPage);
+        $items = $builder->orderBy('schedule_logs.scheduled_for', 'DESC')
+            ->limit($perPage, $offset)
+            ->get()
+            ->getResultArray();
+
+        $totalPages = $perPage > 0 ? (int) ceil($total / $perPage) : 1;
+
+        return [
+            'data' => $items,
+            'meta' => [
+                'total' => $total,
+                'page' => $page,
+                'per_page' => $perPage,
+                'total_pages' => $totalPages,
+            ],
+        ];
     }
 
     /**

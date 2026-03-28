@@ -58,18 +58,22 @@ class ScheduleController extends BaseController
                 return sendApiResponse(null, 'User not authenticated', 401);
             }
 
+            // Pagination params
+            $page = (int) ($this->request->getGet('page') ?? 1);
+            $perPage = (int) ($this->request->getGet('per_page') ?? 20);
+
             // Check for filter parameter
             $filter = $this->request->getGet('filter');
 
             // Handle special filters
             switch ($filter) {
                 case 'today':
-                    $schedules = $this->scheduleModel->getTodaySchedules($this->current_user_id);
+                    $schedules = $this->scheduleModel->getTodaySchedules($this->current_user_id, $page, $perPage);
                     return sendApiResponse($schedules, 'Today\'s schedules retrieved successfully', 200);
 
                 case 'upcoming':
                     $days = $this->request->getGet('days') ?? 7;
-                    $schedules = $this->scheduleModel->getUpcomingSchedules($this->current_user_id, (int)$days);
+                    $schedules = $this->scheduleModel->getUpcomingSchedules($this->current_user_id, (int)$days, $page, $perPage);
                     return sendApiResponse($schedules, 'Upcoming schedules retrieved successfully', 200);
 
                 case 'history':
@@ -79,7 +83,7 @@ class ScheduleController extends BaseController
                         'start_date'    => $this->request->getGet('start_date'),
                         'end_date'      => $this->request->getGet('end_date'),
                     ];
-                    $history = $this->scheduleLogModel->getUserHistory($this->current_user_id, $historyFilters);
+                    $history = $this->scheduleLogModel->getUserHistory($this->current_user_id, $historyFilters, $page, $perPage);
                     return sendApiResponse($history, 'Schedule history retrieved successfully', 200);
 
                 default:
@@ -90,7 +94,7 @@ class ScheduleController extends BaseController
                         'start_date'    => $this->request->getGet('start_date'),
                         'end_date'      => $this->request->getGet('end_date'),
                     ];
-                    $schedules = $this->scheduleModel->getUserSchedules($this->current_user_id, $filters);
+                    $schedules = $this->scheduleModel->getUserSchedules($this->current_user_id, $filters, $page, $perPage);
                     return sendApiResponse($schedules, 'Schedules retrieved successfully', 200);
             }
         } catch (\Throwable $e) {
@@ -112,7 +116,10 @@ class ScheduleController extends BaseController
                 return sendApiResponse(null, 'User not authenticated', 401);
             }
 
-            $schedules = $this->scheduleModel->getTodaySchedules($this->current_user_id);
+            $page = (int) ($this->request->getGet('page') ?? 1);
+            $perPage = (int) ($this->request->getGet('per_page') ?? 20);
+
+            $schedules = $this->scheduleModel->getTodaySchedules($this->current_user_id, $page, $perPage);
 
             return sendApiResponse($schedules, 'Today\'s schedules retrieved successfully', 200);
         } catch (\Throwable $e) {
@@ -135,8 +142,10 @@ class ScheduleController extends BaseController
             }
 
             $days = $this->request->getGet('days') ?? 7;
+            $page = (int) ($this->request->getGet('page') ?? 1);
+            $perPage = (int) ($this->request->getGet('per_page') ?? 20);
 
-            $schedules = $this->scheduleModel->getUpcomingSchedules($this->current_user_id, (int)$days);
+            $schedules = $this->scheduleModel->getUpcomingSchedules($this->current_user_id, (int)$days, $page, $perPage);
 
             return sendApiResponse($schedules, 'Upcoming schedules retrieved successfully', 200);
         } catch (\Throwable $e) {
@@ -552,7 +561,10 @@ class ScheduleController extends BaseController
                 'end_date'      => $this->request->getGet('end_date'),
             ];
 
-            $history = $this->scheduleLogModel->getUserHistory($this->current_user_id, $filters);
+            $page = (int) ($this->request->getGet('page') ?? 1);
+            $perPage = (int) ($this->request->getGet('per_page') ?? 20);
+
+            $history = $this->scheduleLogModel->getUserHistory($this->current_user_id, $filters, $page, $perPage);
 
             return sendApiResponse($history, 'Schedule history retrieved successfully', 200);
         } catch (\Throwable $e) {

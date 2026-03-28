@@ -148,11 +148,51 @@ class ScheduleModel extends Model
     }
 
     /**
-     * Get all schedules for a specific user
+     * Decode JSON fields for a single row array (from query builder)
      */
-    public function getUserSchedules(int $userId, array $filters = [])
+    protected function decodeJsonFieldsRow(array $row): array
     {
-        $builder = $this->where('user_id', $userId);
+        $jsonFields = [
+            'repeat_days',
+            'medicine_details',
+            'food_details',
+            'water_details',
+            'running_details',
+            'sleep_details',
+            'custom_details',
+        ];
+
+        foreach ($jsonFields as $field) {
+            if (isset($row[$field]) && is_string($row[$field]) && $row[$field] !== '') {
+                $decoded = json_decode($row[$field], true);
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    $row[$field] = $decoded;
+                }
+            }
+        }
+
+        return $row;
+    }
+
+    /**
+     * Decode JSON fields for an array of rows
+     */
+    protected function decodeJsonFieldsArray(array $rows): array
+    {
+        foreach ($rows as $i => $row) {
+            $rows[$i] = $this->decodeJsonFieldsRow($row);
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Get all schedules for a specific user with optional filters and pagination
+     */
+    public function getUserSchedules(int $userId, array $filters = [], int $page = 1, int $perPage = 20)
+    {
+        $builder = $this->builder();
+        $builder->where('user_id', $userId);
 
         // Filter by schedule type
         if (!empty($filters['schedule_type'])) {
@@ -175,11 +215,31 @@ class ScheduleModel extends Model
             $builder->where('start_date <=', $filters['end_date']);
         }
 
-        // Order by start date and time
-        $builder->orderBy('start_date', 'ASC')
-            ->orderBy('start_time', 'ASC');
+        // Count total
+        $countBuilder = clone $builder;
+        $total = (int) $countBuilder->countAllResults();
 
-        return $builder->findAll();
+        // Apply ordering and pagination
+        $offset = max(0, ($page - 1) * $perPage);
+        $items = $builder->orderBy('start_date', 'ASC')
+            ->orderBy('start_time', 'ASC')
+            ->limit($perPage, $offset)
+            ->get()
+            ->getResultArray();
+
+        $items = $this->decodeJsonFieldsArray($items);
+
+        $totalPages = $perPage > 0 ? (int) ceil($total / $perPage) : 1;
+
+        return [
+            'data' => $items,
+            'meta' => [
+                'total' => $total,
+                'page' => $page,
+                'per_page' => $perPage,
+                'total_pages' => $totalPages,
+            ],
+        ];
     }
 
     /**
@@ -196,11 +256,11 @@ class ScheduleModel extends Model
     /**
      * Get today's schedules for a user
      */
-    public function getTodaySchedules(int $userId)
+    public function getTodaySchedules(int $userId, int $page = 1, int $perPage = 20)
     {
         $today = date('Y-m-d');
-
-        return $this->where('user_id', $userId)
+        $builder = $this->builder()
+            ->where('user_id', $userId)
             ->where('status', 'active')
             ->groupStart()
             ->where('start_date <=', $today)
@@ -209,26 +269,68 @@ class ScheduleModel extends Model
             ->orWhere('end_date >=', $today)
             ->orWhere('end_date IS NULL')
             ->groupEnd()
-            ->groupEnd()
-            ->orderBy('start_time', 'ASC')
-            ->findAll();
+            ->groupEnd();
+
+        $countBuilder = clone $builder;
+        $total = (int) $countBuilder->countAllResults();
+
+        $offset = max(0, ($page - 1) * $perPage);
+        $items = $builder->orderBy('start_time', 'ASC')
+            ->limit($perPage, $offset)
+            ->get()
+            ->getResultArray();
+
+        $items = $this->decodeJsonFieldsArray($items);
+
+        $totalPages = $perPage > 0 ? (int) ceil($total / $perPage) : 1;
+
+        return [
+            'data' => $items,
+            'meta' => [
+                'total' => $total,
+                'page' => $page,
+                'per_page' => $perPage,
+                'total_pages' => $totalPages,
+            ],
+        ];
     }
 
     /**
      * Get upcoming schedules (next 7 days)
      */
-    public function getUpcomingSchedules(int $userId, int $days = 7)
+    public function getUpcomingSchedules(int $userId, int $days = 7, int $page = 1, int $perPage = 20)
     {
         $today = date('Y-m-d');
         $futureDate = date('Y-m-d', strtotime("+{$days} days"));
-
-        return $this->where('user_id', $userId)
+        $builder = $this->builder()
+            ->where('user_id', $userId)
             ->where('status', 'active')
             ->where('start_date >=', $today)
-            ->where('start_date <=', $futureDate)
-            ->orderBy('start_date', 'ASC')
+            ->where('start_date <=', $futureDate);
+
+        $countBuilder = clone $builder;
+        $total = (int) $countBuilder->countAllResults();
+
+        $offset = max(0, ($page - 1) * $perPage);
+        $items = $builder->orderBy('start_date', 'ASC')
             ->orderBy('start_time', 'ASC')
-            ->findAll();
+            ->limit($perPage, $offset)
+            ->get()
+            ->getResultArray();
+
+        $items = $this->decodeJsonFieldsArray($items);
+
+        $totalPages = $perPage > 0 ? (int) ceil($total / $perPage) : 1;
+
+        return [
+            'data' => $items,
+            'meta' => [
+                'total' => $total,
+                'page' => $page,
+                'per_page' => $perPage,
+                'total_pages' => $totalPages,
+            ],
+        ];
     }
 
     /**
