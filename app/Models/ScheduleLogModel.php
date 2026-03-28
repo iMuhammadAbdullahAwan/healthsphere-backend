@@ -19,6 +19,7 @@ class ScheduleLogModel extends Model
         'completed_at',
         'status',
         'notes',
+        'notified_at',
     ];
 
     // Dates
@@ -32,7 +33,7 @@ class ScheduleLogModel extends Model
         'schedule_id'   => 'required|integer',
         'user_id'       => 'required|integer',
         'scheduled_for' => 'required|valid_date',
-        'status'        => 'permit_empty|in_list[pending,completed,skipped,missed]',
+        'status'        => 'permit_empty|in_list[pending,completed,skipped,missed,canceled]',
     ];
 
     protected $validationMessages = [
@@ -139,6 +140,55 @@ class ScheduleLogModel extends Model
             'id'      => $logId,
             'user_id' => $userId,
         ])->set($data)->update();
+    }
+
+    /**
+     * Mark a log entry as canceled (user skipped/cancelled for that occurrence)
+     */
+    public function markCanceled(int $logId, int $userId, ?string $notes = null)
+    {
+        $data = [
+            'status' => 'canceled',
+        ];
+
+        if ($notes) {
+            $data['notes'] = $notes;
+        }
+
+        return $this->where([
+            'id'      => $logId,
+            'user_id' => $userId,
+        ])->set($data)->update();
+    }
+
+    /**
+     * Un-cancel a canceled log (set back to pending)
+     */
+    public function unCancel(int $logId, int $userId)
+    {
+        return $this->where([
+            'id'      => $logId,
+            'user_id' => $userId,
+        ])->set([
+            'status' => 'pending',
+            'notified_at' => null,
+            'completed_at' => null,
+        ])->update();
+    }
+
+    /**
+     * Undo a completed log (set back to pending)
+     */
+    public function undoCompleted(int $logId, int $userId)
+    {
+        return $this->where([
+            'id'      => $logId,
+            'user_id' => $userId,
+        ])->set([
+            'status' => 'pending',
+            'completed_at' => null,
+            'notes' => null,
+        ])->update();
     }
 
     /**

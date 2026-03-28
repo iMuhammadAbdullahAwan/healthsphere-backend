@@ -54,7 +54,7 @@ class ScheduleModel extends Model
         'end_condition'  => 'required|in_list[never,on_date,after_occurrences]',
         'reminder_enabled' => 'permit_empty|in_list[0,1]',
         'reminder_mode'  => 'permit_empty|in_list[notification,voice,both]',
-        'status'         => 'permit_empty|in_list[active,paused,completed]',
+        'status'         => 'permit_empty|in_list[active,paused,completed,canceled]',
     ];
 
     protected $validationMessages = [
@@ -338,7 +338,7 @@ class ScheduleModel extends Model
      */
     public function updateStatus(int $scheduleId, int $userId, string $status)
     {
-        if (!in_array($status, ['active', 'paused', 'completed'])) {
+        if (!in_array($status, ['active', 'paused', 'completed', 'canceled'])) {
             return false;
         }
 

@@ -80,6 +80,19 @@ class TaskScheduler extends BaseCommand
             'time'      => '15', // At minute 15 of every hour
             'enabled'   => false, // Disabled by default
         ],
+        [
+            'name'      => 'Generate Schedule Logs',
+            'command'   => 'schedules:generate-logs --days=7',
+            'frequency' => 'daily',
+            'time'      => '00:00', // Daily at midnight
+            'enabled'   => true,
+        ],
+        [
+            'name'      => 'Dispatch Schedule Reminders',
+            'command'   => 'schedules:dispatch-reminders',
+            'frequency' => 'everyMinute',
+            'enabled'   => true,
+        ],
     ];
 
     public function run(array $params)

@@ -91,7 +91,7 @@ class QueueWorker extends BaseCommand
         CLI::write("Processing job #{$jobId} ({$jobType})...", 'light_gray');
 
         // Mark as processing
-        $db->table('job_queue')->update($jobId, [
+        $db->table('job_queue')->where('id', $jobId)->update([
             'status'     => 'processing',
             'started_at' => date('Y-m-d H:i:s')
         ]);
@@ -106,7 +106,7 @@ class QueueWorker extends BaseCommand
             };
 
             // Mark as completed
-            $db->table('job_queue')->update($jobId, [
+            $db->table('job_queue')->where('id', $jobId)->update([
                 'status'       => 'completed',
                 'completed_at' => date('Y-m-d H:i:s'),
                 'result'       => json_encode($result)
@@ -132,7 +132,7 @@ class QueueWorker extends BaseCommand
                 CLI::write("  → Job #{$jobId} failed, retrying in {$attempts} min: " . $e->getMessage(), 'yellow');
             }
 
-            $db->table('job_queue')->update($jobId, $updateData);
+            $db->table('job_queue')->where('id', $jobId)->update($updateData);
 
             log_message('error', "Job #{$jobId} error: " . $e->getMessage());
         }

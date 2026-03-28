@@ -61,6 +61,11 @@ $routes->group('api', ['namespace' => 'App\Controllers\Api'], function ($routes)
         $routes->post('schedules/logs/(:num)/complete', 'ScheduleController::completeLog/$1');
         $routes->put('schedules/(:num)', 'ScheduleController::update/$1');
         $routes->patch('schedules/(:num)/status', 'ScheduleController::updateStatus/$1');
+        // Cancel / Uncancel endpoints
+        $routes->post('schedules/(:num)/cancel', 'ScheduleController::cancel/$1');
+        $routes->post('schedules/(:num)/uncancel', 'ScheduleController::uncancel/$1');
+        // Undo completed log
+        $routes->post('schedules/logs/(:num)/undo', 'ScheduleController::undoLog/$1');
         $routes->delete('schedules/(:num)', 'ScheduleController::delete/$1');
 
         // Food Routes (AI-powered food analysis and logging)

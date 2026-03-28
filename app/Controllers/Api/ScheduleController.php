@@ -5,6 +5,7 @@ namespace App\Controllers\Api;
 use App\Controllers\BaseController;
 use App\Models\ScheduleModel;
 use App\Models\ScheduleLogModel;
+use App\Libraries\NotificationService;
 use CodeIgniter\HTTP\ResponseInterface;
 
 /**
@@ -271,6 +272,20 @@ class ScheduleController extends BaseController
             // Get the created schedule
             $schedule = $this->scheduleModel->find($scheduleId);
 
+            // Send real-time notification about the new schedule
+            try {
+                $notificationService = new NotificationService();
+                $notificationService->createNotification([
+                    'user_ids'   => $this->current_user_id,
+                    'created_by' => $this->current_user_id,
+                    'message'    => "New schedule created: {$schedule['title']}",
+                    'type'       => 'schedule_created',
+                    'link'       => '/schedules/' . $schedule['id'],
+                    'related_id' => $schedule['id'],
+                ]);
+            } catch (\Throwable $e) {
+                log_message('error', 'Failed to send schedule created notification: ' . $e->getMessage());
+            }
             return sendApiResponse($schedule, 'Schedule created successfully', 201);
         } catch (\Throwable $e) {
             log_message('error', 'Create schedule error: ' . $e->getMessage());
@@ -373,6 +388,136 @@ class ScheduleController extends BaseController
         } catch (\Throwable $e) {
             log_message('error', 'Update schedule status error: ' . $e->getMessage());
             return sendApiResponse(null, 'Failed to update schedule status', 500);
+        }
+    }
+
+    /**
+     * Cancel a schedule or a single occurrence
+     * POST /api/schedules/{id}/cancel
+     * body: { scope: 'one'|'all', date: 'YYYY-MM-DD' }
+     */
+    public function cancel($id = null): ResponseInterface
+    {
+        try {
+            if (!$this->current_user_id) {
+                return sendApiResponse(null, 'User not authenticated', 401);
+            }
+
+            if (!$id) {
+                return sendApiResponse(null, 'Schedule ID is required', 400);
+            }
+
+            $data = $this->request->getJSON(true) ?? [];
+            $scope = $data['scope'] ?? 'all';
+
+            if ($scope === 'one') {
+                $date = $data['date'] ?? null;
+                if (!$date) {
+                    return sendApiResponse(null, 'Date is required when scope=one', 400);
+                }
+
+                // find the log for that date
+                $log = $this->scheduleLogModel->where(['schedule_id' => (int)$id, 'user_id' => $this->current_user_id])
+                    ->where('DATE(scheduled_for)', $date)
+                    ->first();
+
+                if (!$log) {
+                    return sendApiResponse(null, 'Occurrence not found', 404);
+                }
+
+                $this->scheduleLogModel->markCanceled((int)$log['id'], $this->current_user_id);
+                return sendApiResponse(null, 'Occurrence canceled', 200);
+            }
+
+            // scope = all => cancel entire schedule
+            $updated = $this->scheduleModel->updateStatus((int)$id, $this->current_user_id, 'canceled');
+            if (!$updated) {
+                return sendApiResponse(null, 'Failed to cancel schedule or not found', 400);
+            }
+
+            return sendApiResponse(null, 'Schedule canceled successfully', 200);
+        } catch (\Throwable $e) {
+            log_message('error', 'Cancel schedule error: ' . $e->getMessage());
+            return sendApiResponse(null, 'Failed to cancel schedule', 500);
+        }
+    }
+
+    /**
+     * Un-cancel (redo) a schedule or a single occurrence
+     * POST /api/schedules/{id}/uncancel
+     * body: { scope: 'one'|'all', date: 'YYYY-MM-DD' }
+     */
+    public function uncancel($id = null): ResponseInterface
+    {
+        try {
+            if (!$this->current_user_id) {
+                return sendApiResponse(null, 'User not authenticated', 401);
+            }
+
+            if (!$id) {
+                return sendApiResponse(null, 'Schedule ID is required', 400);
+            }
+
+            $data = $this->request->getJSON(true) ?? [];
+            $scope = $data['scope'] ?? 'all';
+
+            if ($scope === 'one') {
+                $date = $data['date'] ?? null;
+                if (!$date) {
+                    return sendApiResponse(null, 'Date is required when scope=one', 400);
+                }
+
+                $log = $this->scheduleLogModel->where(['schedule_id' => (int)$id, 'user_id' => $this->current_user_id])
+                    ->where('DATE(scheduled_for)', $date)
+                    ->first();
+
+                if (!$log) {
+                    return sendApiResponse(null, 'Occurrence not found', 404);
+                }
+
+                $this->scheduleLogModel->unCancel((int)$log['id'], $this->current_user_id);
+                return sendApiResponse(null, 'Occurrence uncanceled', 200);
+            }
+
+            // scope = all => resume schedule
+            $updated = $this->scheduleModel->updateStatus((int)$id, $this->current_user_id, 'active');
+            if (!$updated) {
+                return sendApiResponse(null, 'Failed to uncancel schedule or not found', 400);
+            }
+
+            return sendApiResponse(null, 'Schedule uncanceled successfully', 200);
+        } catch (\Throwable $e) {
+            log_message('error', 'Uncancel schedule error: ' . $e->getMessage());
+            return sendApiResponse(null, 'Failed to uncancel schedule', 500);
+        }
+    }
+
+    /**
+     * Undo a completed log (set back to pending)
+     * POST /api/schedules/logs/{logId}/undo
+     */
+    public function undoLog($logId = null): ResponseInterface
+    {
+        try {
+            if (!$this->current_user_id) {
+                return sendApiResponse(null, 'User not authenticated', 401);
+            }
+
+            if (!$logId) {
+                return sendApiResponse(null, 'Log ID is required', 400);
+            }
+
+            $updated = $this->scheduleLogModel->undoCompleted((int)$logId, $this->current_user_id);
+
+            if (!$updated) {
+                return sendApiResponse(null, 'Failed to undo or log not found', 400);
+            }
+
+            $log = $this->scheduleLogModel->find($logId);
+            return sendApiResponse($log, 'Log undone to pending', 200);
+        } catch (\Throwable $e) {
+            log_message('error', 'Undo schedule log error: ' . $e->getMessage());
+            return sendApiResponse(null, 'Failed to undo schedule log', 500);
         }
     }
 

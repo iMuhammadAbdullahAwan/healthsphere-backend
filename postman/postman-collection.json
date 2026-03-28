@@ -1016,6 +1016,55 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "Cancel Schedule (all)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"scope\": \"all\"\n}" },
+            "url": {
+              "raw": "{{base_url}}/api/schedules/:id/cancel",
+              "host": ["{{base_url}}"],
+              "path": ["api", "schedules", ":id", "cancel"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Uncancel Schedule (all)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"scope\": \"all\"\n}" },
+            "url": {
+              "raw": "{{base_url}}/api/schedules/:id/uncancel",
+              "host": ["{{base_url}}"],
+              "path": ["api", "schedules", ":id", "uncancel"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Undo Completed Log",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/schedules/logs/:logId/undo",
+              "host": ["{{base_url}}"],
+              "path": ["api", "schedules", "logs", ":logId", "undo"]
+            }
+          },
+          "response": []
         }
       ]
     },
