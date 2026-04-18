@@ -38,6 +38,8 @@ class UserModel extends Model
         'password_reset_expires_at',
         'email_verified_at',
         'last_login',
+        'step_tracking_enabled',
+        'daily_step_goal',
     ];
 
     protected $useTimestamps = true;

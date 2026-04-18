@@ -12,6 +12,8 @@ This documentation covers all available API endpoints organized by feature:
 - **[User Profile](PROFILE.md)** - Profile management, updates, image upload
 - **[Notifications](NOTIFICATIONS.md)** - Notification management and real-time updates
 - **[Schedules](SCHEDULES.md)** - Complete schedule management system
+- **[Food & Nutrition](FOOD.md)** - AI analysis and food logging
+- **[Step Tracking](STEPS.md)** - Pedometer sessions and tracking goals
 
 ### Testing
 

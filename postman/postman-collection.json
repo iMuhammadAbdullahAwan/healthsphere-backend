@@ -1282,21 +1282,6 @@
                   "key": "food_image",
                   "type": "file",
                   "src": []
-                },
-                {
-                  "key": "meal_type",
-                  "value": "lunch",
-                  "type": "text"
-                },
-                {
-                  "key": "consumed_at",
-                  "value": "2026-02-14 12:30:00",
-                  "type": "text"
-                },
-                {
-                  "key": "save_log",
-                  "value": "true",
-                  "type": "text"
                 }
               ]
             },
@@ -1304,6 +1289,50 @@
               "raw": "{{base_url}}/api/food-logs/analyze",
               "host": ["{{base_url}}"],
               "path": ["api", "food-logs", "analyze"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Recommendations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/food-logs/recommendations",
+              "host": ["{{base_url}}"],
+              "path": ["api", "food-logs", "recommendations"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Log Eaten Food (Manual/Confirmed)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"food_name\": \"Grilled Chicken Breast\",\n  \"calories\": 165,\n  \"protein\": 31,\n  \"carbohydrates\": 0,\n  \"fat\": 3.6,\n  \"meal_type\": \"lunch\",\n  \"consumed_at\": \"2026-04-18 13:00:00\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/food-logs",
+              "host": ["{{base_url}}"],
+              "path": ["api", "food-logs"]
             }
           },
           "response": []
@@ -1348,6 +1377,105 @@
               "raw": "{{base_url}}/api/food-logs/1",
               "host": ["{{base_url}}"],
               "path": ["api", "food-logs", "1"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Steps",
+      "item": [
+        {
+          "name": "Get All Step Sessions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/steps/sessions?page=1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "steps", "sessions"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Save Step Session",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"steps\": 8421,\n  \"distanceKm\": 6.1,\n  \"durationSeconds\": 3912,\n  \"startedAt\": \"2026-04-18T08:00:00Z\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/steps/sessions",
+              "host": ["{{base_url}}"],
+              "path": ["api", "steps", "sessions"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Tracking Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/steps/tracking/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "steps", "tracking", "status"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Toggle Tracking / Set Goal",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enabled\": true,\n  \"goal\": 12000\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/steps/tracking",
+              "host": ["{{base_url}}"],
+              "path": ["api", "steps", "tracking"]
             }
           },
           "response": []

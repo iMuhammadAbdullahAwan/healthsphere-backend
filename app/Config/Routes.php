@@ -81,6 +81,16 @@ $routes->group('api', ['namespace' => 'App\Controllers\Api'], function ($routes)
         $routes->post('food-logs/analyze', 'FoodController::upload'); // Upload & analyze food image
         $routes->put('food-logs/(:num)', 'FoodController::update/$1');
         $routes->delete('food-logs/(:num)', 'FoodController::delete/$1');
+
+        // Steps Routes
+        $routes->group('steps', function ($routes) {
+            $routes->get('sessions', 'StepsController::index');
+            $routes->post('sessions', 'StepsController::create');
+            $routes->get('sessions/(:num)', 'StepsController::show/$1');
+            $routes->delete('sessions/(:num)', 'StepsController::delete/$1');
+            $routes->get('tracking/status', 'StepsController::getStatus');
+            $routes->patch('tracking', 'StepsController::toggleTracking');
+        });
     });
 });
 
