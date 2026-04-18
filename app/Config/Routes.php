@@ -42,6 +42,9 @@ $routes->group('api', ['namespace' => 'App\Controllers\Api'], function ($routes)
         $routes->get('users/profile', 'Users::getProfile');
         $routes->put('users/profile', 'Users::updateProfile');
         $routes->post('users/profile/image', 'Users::uploadProfileImage');
+        $routes->get('users/assignment', 'Users::getMyAssignment');
+        $routes->put('users/assignment', 'Users::assignMyUserAdmin');
+        $routes->delete('users/assignment', 'Users::unassignMyUserAdmin');
         $routes->delete('users/account', 'Users::deleteAccount');
 
         // Notification Routes
@@ -97,6 +100,31 @@ $routes->group('api', ['namespace' => 'App\Controllers\Api'], function ($routes)
             $routes->get('', 'ExerciseController::index');
             $routes->post('', 'ExerciseController::create');
             $routes->delete('(:num)', 'ExerciseController::delete/$1');
+        });
+
+        // Admin Routes (user_admin scoped operations; super_admin can still access)
+        $routes->group('admin', ['filter' => 'admin'], function ($routes) {
+            $routes->get('analytics', 'Users::adminAnalytics');
+            $routes->get('users', 'Users::adminListUsers');
+            $routes->get('users/(:num)/profile', 'Users::adminGetManagedUserProfile/$1');
+            $routes->put('users/(:num)/profile', 'Users::adminUpdateManagedUserProfile/$1');
+            $routes->post('users/(:num)/profile/image', 'Users::adminUploadManagedUserProfileImage/$1');
+            $routes->delete('users/(:num)', 'Users::adminDeleteUser/$1');
+        });
+
+        // Super Admin Routes (full platform users data and stats)
+        $routes->group('super-admin', ['filter' => 'superadmin'], function ($routes) {
+            $routes->get('analytics', 'Users::adminAnalytics');
+            $routes->get('users', 'Users::adminListUsers');
+            $routes->get('user-admins', 'Users::adminListUserAdmins');
+            $routes->get('users/unassigned', 'Users::adminListUnassignedUsers');
+            $routes->get('users/(:num)/profile', 'Users::adminGetManagedUserProfile/$1');
+            $routes->put('users/(:num)/profile', 'Users::adminUpdateManagedUserProfile/$1');
+            $routes->post('users/(:num)/profile/image', 'Users::adminUploadManagedUserProfileImage/$1');
+            $routes->put('users/(:num)/role', 'Users::adminUpdateRole/$1');
+            $routes->put('users/(:num)/assign', 'Users::adminAssignUser/$1');
+            $routes->delete('users/(:num)/assign', 'Users::adminUnassignUser/$1');
+            $routes->delete('users/(:num)', 'Users::adminDeleteUser/$1');
         });
     });
 });

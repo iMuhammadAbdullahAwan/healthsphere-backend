@@ -104,9 +104,66 @@ class TokenFilter implements FilterInterface
                 ])->setStatusCode(401, 'Invalid token');
             }
 
-            // Inject user data into request for use in controllers
+            // Support delegated "act as user" flow for user_admin.
+            // Client sends: X-Act-As-User-Id: <assigned_user_id>
+            $effectiveUserId = (int)$user['id'];
+            $actorUserId = (int)$user['id'];
+            $actorRole = $user['role'] ?? 'user';
+
+            $actAsHeader = $request->getHeader('X-Act-As-User-Id');
+            if ($actAsHeader && $actAsHeader->getValue() !== '') {
+                $targetUserId = (int)$actAsHeader->getValue();
+
+                if ($targetUserId <= 0) {
+                    return $response->setJSON([
+                        'data' => null,
+                        'message' => 'Invalid X-Act-As-User-Id header.',
+                        'status' => 400,
+                    ])->setStatusCode(400, 'Invalid delegation header');
+                }
+
+                if ($actorRole !== 'user_admin' && $actorRole !== 'super_admin') {
+                    return $response->setJSON([
+                        'data' => null,
+                        'message' => 'Only user_admin or super_admin can act on behalf of another user.',
+                        'status' => 403,
+                    ])->setStatusCode(403, 'Delegation forbidden');
+                }
+
+                $targetUser = $this->userModel->find($targetUserId);
+                if (!$targetUser) {
+                    return $response->setJSON([
+                        'data' => null,
+                        'message' => 'Delegation target user not found.',
+                        'status' => 404,
+                    ])->setStatusCode(404, 'Delegation target not found');
+                }
+
+                if (($targetUser['role'] ?? 'user') !== 'user') {
+                    return $response->setJSON([
+                        'data' => null,
+                        'message' => 'Delegation target must be a standard user account.',
+                        'status' => 422,
+                    ])->setStatusCode(422, 'Invalid delegation target');
+                }
+
+                if ($actorRole === 'user_admin' && (int)($targetUser['managed_by_admin_id'] ?? 0) !== $actorUserId) {
+                    return $response->setJSON([
+                        'data' => null,
+                        'message' => 'This user is not assigned to the current user_admin.',
+                        'status' => 403,
+                    ])->setStatusCode(403, 'Delegation forbidden');
+                }
+
+                $effectiveUserId = $targetUserId;
+            }
+
+            // Inject effective user context and actor context into request.
             $currentPostData = $request->getPost();
-            $currentPostData['current_user_id'] = $user['id'];
+            $currentPostData['current_user_id'] = $effectiveUserId;
+            $currentPostData['actor_user_id'] = $actorUserId;
+            $currentPostData['actor_role'] = $actorRole;
+            $currentPostData['is_acting_as_user'] = $effectiveUserId !== $actorUserId ? 1 : 0;
             $request->setGlobal('post', $currentPostData);
         } catch (\Firebase\JWT\ExpiredException $e) {
             return $response->setJSON([

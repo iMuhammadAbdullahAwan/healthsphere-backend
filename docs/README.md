@@ -16,6 +16,7 @@ This documentation covers all available API endpoints organized by feature:
 - **[Step Tracking](STEPS.md)** - Pedometer sessions and tracking goals
 - **[Exercise Logging](EXERCISES.md)** - Manual activity tracking and history
 - **[Schedules Frontend Reference](SCHEDULES_API.md)** - Schedule status flows and advanced actions
+- **[Admin Delegation](ADMIN.md)** - Super admin and user_admin assignment and on-behalf flow
 
 ### Testing
 
@@ -109,6 +110,9 @@ All API responses follow this structure:
 | GET | `/api/users/profile` | Get user profile |
 | PUT | `/api/users/profile` | Update user profile |
 | POST | `/api/users/profile/image` | Upload profile image |
+| GET | `/api/users/assignment` | Get current user's assignment details |
+| PUT | `/api/users/assignment` | Assign current user to a user_admin |
+| DELETE | `/api/users/assignment` | Unassign current user from user_admin |
 | DELETE | `/api/users/account` | Delete user account |
 
 ### Notifications (Protected)
@@ -138,6 +142,36 @@ All API responses follow this structure:
 | POST | `/api/schedules/{id}/undone` | Undo done (schedule or one occurrence) |
 | POST | `/api/schedules/logs/{id}/undo` | Undo a completed log |
 | DELETE | `/api/schedules/{id}` | Delete schedule |
+
+### Admin (Protected)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/admin/analytics` | Assigned-user analytics (user_admin scope) |
+| GET | `/api/admin/users` | List assigned users (user_admin scope) |
+| GET | `/api/admin/users/{id}/profile` | Get managed user profile |
+| PUT | `/api/admin/users/{id}/profile` | Update managed user profile |
+| POST | `/api/admin/users/{id}/profile/image` | Upload managed user profile image |
+| DELETE | `/api/admin/users/{id}` | Delete assigned user |
+
+### Super Admin (Protected)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/super-admin/analytics` | Full platform analytics |
+| GET | `/api/super-admin/users` | Full platform users list |
+| GET | `/api/super-admin/user-admins` | List user_admin accounts with assigned-user counts |
+| GET | `/api/super-admin/users/unassigned` | List unassigned users |
+| GET | `/api/super-admin/users/{id}/profile` | Get any managed user profile |
+| PUT | `/api/super-admin/users/{id}/profile` | Update any managed user profile |
+| POST | `/api/super-admin/users/{id}/profile/image` | Upload any managed user profile image |
+| PUT | `/api/super-admin/users/{id}/role` | Update user role |
+| PUT | `/api/super-admin/users/{id}/assign` | Assign user to user_admin |
+| DELETE | `/api/super-admin/users/{id}/assign` | Unassign user from user_admin |
+| DELETE | `/api/super-admin/users/{id}` | Delete user |
+
+Role scope rules:
+- `super_admin` has full platform users data and stats through `/api/super-admin/*`.
+- `user_admin` manages only assigned users through `/api/admin/*`.
+- `user_admin` remains a normal authenticated user and can still use regular user features.
 
 ---
 

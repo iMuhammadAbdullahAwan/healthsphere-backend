@@ -36,6 +36,7 @@ class Filters extends BaseFilters
         'performance'   => PerformanceMetrics::class,
         'token.auth'    => \App\Filters\TokenFilter::class,
         'admin'         => \App\Filters\AdminFilter::class,
+        'superadmin'    => \App\Filters\SuperAdminFilter::class,
         'ratelimit'     => \App\Filters\RateLimitFilter::class,
     ];
 

@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
     "name": "HealthSphere API",
-    "description": "Complete API collection for HealthSphere Backend with organized folders for Authentication, User Profile, Notifications, Schedules, and Food Logs features. Includes automatic token management, consolidated endpoints with query parameters, and AI-powered food analysis. Updated Feb 2026.",
+    "description": "Complete API collection for HealthSphere Backend with Authentication, User, Notifications, Schedules, Food, Steps, Exercises, Admin, and Super Admin endpoints. Updated Apr 2026.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "12345678"
   },
@@ -131,7 +131,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"testuser@example.com\"\n}"
+              "raw": "{\n  \"target\": \"testuser@example.com\",\n  \"type\": \"login\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/auth/send-otp",
@@ -153,7 +153,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"testuser@example.com\",\n  \"otp\": \"123456\"\n}"
+              "raw": "{\n  \"target\": \"testuser@example.com\",\n  \"code\": \"123456\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/auth/verify-otp",
@@ -190,7 +190,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"testuser@example.com\",\n  \"otp\": \"123456\"\n}"
+              "raw": "{\n  \"target\": \"testuser@example.com\",\n  \"code\": \"123456\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/auth/login-otp",
@@ -210,7 +210,6 @@
                   "if (pm.response.code === 200) {",
                   "    const response = pm.response.json();",
                   "    pm.collectionVariables.set('access_token', response.data.access_token);",
-                  "    pm.collectionVariables.set('refresh_token', response.data.refresh_token);",
                   "}"
                 ],
                 "type": "text/javascript"
@@ -289,7 +288,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"token\": \"reset_token_from_email\",\n  \"password\": \"NewSecurePass123!\",\n  \"password_confirm\": \"NewSecurePass123!\"\n}"
+              "raw": "{\n  \"token\": \"reset_token_from_email\",\n  \"new_password\": \"NewSecurePass123!\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/auth/reset-password",
@@ -377,6 +376,68 @@
           "response": []
         },
         {
+          "name": "Get My Assignment",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/users/assignment",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "assignment"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Assign My User Admin",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_admin_id\": 2\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/users/assignment",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "assignment"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Unassign My User Admin",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/users/assignment",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "assignment"]
+            }
+          },
+          "response": []
+        },
+        {
           "name": "Delete Account",
           "request": {
             "method": "DELETE",
@@ -436,17 +497,21 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/notifications?read=0&type=schedule_reminder",
+              "raw": "{{base_url}}/api/notifications?search=schedule&limit=10&page=1",
               "host": ["{{base_url}}"],
               "path": ["api", "notifications"],
               "query": [
                 {
-                  "key": "read",
-                  "value": "0"
+                  "key": "search",
+                  "value": "schedule"
                 },
                 {
-                  "key": "type",
-                  "value": "schedule_reminder"
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
                 }
               ]
             }
@@ -1527,6 +1592,386 @@
               "raw": "{{base_url}}/api/exercises/1",
               "host": ["{{base_url}}"],
               "path": ["api", "exercises", "1"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Get Assigned Analytics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/analytics",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "analytics"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Assigned Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/users?page=1&limit=25",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "users"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "25" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Managed User Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/users/1/profile",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "users", "1", "profile"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Managed User Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"Managed User Updated\",\n  \"phone\": \"+12345678901\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/users/1/profile",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "users", "1", "profile"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Upload Managed User Profile Image",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "profile_img",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/users/1/profile/image",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "users", "1", "profile", "image"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Managed User",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/users/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "users", "1"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Super Admin",
+      "item": [
+        {
+          "name": "Get Platform Analytics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/super-admin/analytics",
+              "host": ["{{base_url}}"],
+              "path": ["api", "super-admin", "analytics"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Platform Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/super-admin/users?page=1&limit=25",
+              "host": ["{{base_url}}"],
+              "path": ["api", "super-admin", "users"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "25" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get User Admins",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/super-admin/user-admins",
+              "host": ["{{base_url}}"],
+              "path": ["api", "super-admin", "user-admins"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Unassigned Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/super-admin/users/unassigned?page=1&limit=25",
+              "host": ["{{base_url}}"],
+              "path": ["api", "super-admin", "users", "unassigned"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "25" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update User Role",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"user_admin\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/super-admin/users/1/role",
+              "host": ["{{base_url}}"],
+              "path": ["api", "super-admin", "users", "1", "role"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Assign User To User Admin",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_admin_id\": 2,\n  \"promote_to_user_admin\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/super-admin/users/1/assign",
+              "host": ["{{base_url}}"],
+              "path": ["api", "super-admin", "users", "1", "assign"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Unassign User From User Admin",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/super-admin/users/1/assign",
+              "host": ["{{base_url}}"],
+              "path": ["api", "super-admin", "users", "1", "assign"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get User Profile (Super Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/super-admin/users/1/profile",
+              "host": ["{{base_url}}"],
+              "path": ["api", "super-admin", "users", "1", "profile"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update User Profile (Super Admin)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"Platform User Updated\",\n  \"phone\": \"+12345678901\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/super-admin/users/1/profile",
+              "host": ["{{base_url}}"],
+              "path": ["api", "super-admin", "users", "1", "profile"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Upload User Profile Image (Super Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "profile_img",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/super-admin/users/1/profile/image",
+              "host": ["{{base_url}}"],
+              "path": ["api", "super-admin", "users", "1", "profile", "image"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete User (Super Admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/super-admin/users/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "super-admin", "users", "1"]
             }
           },
           "response": []

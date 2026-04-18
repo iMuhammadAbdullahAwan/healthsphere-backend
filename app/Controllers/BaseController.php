@@ -70,6 +70,27 @@ abstract class BaseController extends Controller
     protected $current_user_role = null;
 
     /**
+     * Authenticated actor user ID (real account from token)
+     *
+     * @var int|null
+     */
+    protected $actor_user_id = null;
+
+    /**
+     * Authenticated actor role (role from token owner)
+     *
+     * @var string|null
+     */
+    protected $actor_user_role = null;
+
+    /**
+     * Whether request is delegated to another user context
+     *
+     * @var bool
+     */
+    protected $is_acting_as_user = false;
+
+    /**
      * Check whether the current user has any of the provided roles
      *
      * @param array|string $roles
@@ -114,6 +135,9 @@ abstract class BaseController extends Controller
     protected function setupAuthenticatedUser(): void
     {
         $userId = $this->request->getPost('current_user_id');
+        $actorUserId = $this->request->getPost('actor_user_id');
+        $actorRole = $this->request->getPost('actor_role');
+        $isActingAs = (int)($this->request->getPost('is_acting_as_user') ?? 0) === 1;
 
         if (!$userId) {
             return;
@@ -121,6 +145,8 @@ abstract class BaseController extends Controller
 
         try {
             $this->current_user_id = (int) $userId;
+            $this->actor_user_id = $actorUserId ? (int)$actorUserId : $this->current_user_id;
+            $this->is_acting_as_user = $isActingAs;
 
             $userModel = new \App\Models\UserModel();
             $user = $userModel->getUserPrivateDetails($this->current_user_id);
@@ -128,6 +154,7 @@ abstract class BaseController extends Controller
             if ($user) {
                 $this->current_user = $user;
                 $this->current_user_role = $user['role'] ?? 'user';
+                $this->actor_user_role = $actorRole ?: $this->current_user_role;
                 $this->logged_in = true;
             }
         } catch (\Exception $e) {

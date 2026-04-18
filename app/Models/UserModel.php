@@ -40,6 +40,7 @@ class UserModel extends Model
         'last_login',
         'step_tracking_enabled',
         'daily_step_goal',
+        'managed_by_admin_id',
     ];
 
     protected $useTimestamps = true;
