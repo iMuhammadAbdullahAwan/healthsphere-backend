@@ -37,7 +37,7 @@ This document describes schedule and schedule_log statuses, common scenarios (ca
     Example using form-data:
     - `payload`: `{ "title": "Morning Medication", "schedule_type": "medicine", "medicine_details": { ... } }`
     - `image`: (file) `morning_med.png`
-  - Stored path: uploaded files are saved under `writable/uploads/schedules/` and the `image` field will contain a relative path like `writable/uploads/schedules/<filename>`.
+  - Stored path: uploaded files are saved under `public/uploads/schedules/` and the `image` field will contain a relative path like `uploads/schedules/<filename>`.
 
 - **Update schedule**
   - PUT /api/schedules/{id}

@@ -26,6 +26,66 @@ class FoodController extends BaseController
     }
 
     /**
+     * Log a meal as eaten
+     * POST /api/food-logs
+     * 
+     * @return ResponseInterface
+     */
+    public function create(): ResponseInterface
+    {
+        try {
+            if (!$this->current_user_id) {
+                return sendApiResponse(null, 'User not authenticated', 401);
+            }
+
+            $validationRules = [
+                'food_name' => 'required|string|max_length[255]',
+                'calories' => 'required|numeric',
+                'protein' => 'permit_empty|numeric',
+                'carbohydrates' => 'permit_empty|numeric',
+                'fat' => 'permit_empty|numeric',
+                'meal_type' => 'permit_empty|in_list[breakfast,lunch,dinner,snack]',
+            ];
+
+            if (!$this->validate($validationRules)) {
+                return sendApiResponse(null, 'Validation failed: ' . json_encode($this->validator->getErrors()), 400);
+            }
+
+            $data = [
+                'user_id'          => $this->current_user_id,
+                'food_name'        => $this->request->getPost('food_name'),
+                'image_path'       => $this->request->getPost('image_path'),
+                'portion_size'     => $this->request->getPost('portion_size') ?? 'Standard portion',
+                'calories'         => $this->request->getPost('calories'),
+                'protein'          => $this->request->getPost('protein') ?? 0,
+                'carbohydrates'    => $this->request->getPost('carbohydrates') ?? 0,
+                'fat'              => $this->request->getPost('fat') ?? 0,
+                'fiber'            => $this->request->getPost('fiber') ?? 0,
+                'sugar'            => $this->request->getPost('sugar') ?? 0,
+                'sodium'           => $this->request->getPost('sodium') ?? 0,
+                'confidence_score' => $this->request->getPost('confidence_score'),
+                'raw_analysis'     => $this->request->getPost('raw_analysis'),
+                'meal_type'        => $this->request->getPost('meal_type') ?? 'snack',
+                'consumed_at'      => $this->request->getPost('consumed_at') ?? date('Y-m-d H:i:s'),
+            ];
+
+            $logId = $this->foodLogModel->insert($data);
+
+            if (!$logId) {
+                return sendApiResponse(null, 'Failed to log food entry', 500);
+            }
+
+            // Return the created log
+            $createdLog = $this->foodLogModel->find($logId);
+
+            return sendApiResponse($createdLog, 'Meal logged successfully', 201);
+        } catch (\Throwable $e) {
+            log_message('error', 'Log eat error: ' . $e->getMessage());
+            return sendApiResponse(null, 'An error occurred while logging the meal', 500);
+        }
+    }
+
+    /**
      * Get food logs with optional filters
      * GET /api/food-logs?meal_type=lunch&start_date=2024-01-01
      * 
@@ -103,6 +163,74 @@ class FoodController extends BaseController
     }
 
     /**
+     * Get food recommendations based on user profile and history
+     * GET /api/food-logs/recommendations
+     * 
+     * @return ResponseInterface
+     */
+    public function recommendations(): ResponseInterface
+    {
+        try {
+            if (!$this->current_user_id) {
+                return sendApiResponse(null, 'User not authenticated', 401);
+            }
+
+            if (empty($this->openAIConfig->logMealToken)) {
+                return sendApiResponse(null, 'LogMeal service not configured', 500);
+            }
+
+            $client = \Config\Services::curlrequest();
+
+            // Sync user profile to LogMeal for better recommendations
+            $userModel = new \App\Models\UserModel();
+            $user = $userModel->find($this->current_user_id);
+            
+            if ($user) {
+                // Map gender to ISO/IEC 5218
+                $sex = match ($user['gender'] ?? '') {
+                    'male' => 1,
+                    'female' => 2,
+                    default => 0
+                };
+
+                $client->request('POST', $this->openAIConfig->logMealBaseUrl . '/profile/modifyUserProfileInfo', [
+                    'headers' => [
+                        'Authorization' => 'Bearer ' . $this->openAIConfig->logMealToken,
+                        'Content-Type'  => 'application/json'
+                    ],
+                    'json' => [
+                        'first_name' => explode(' ', $user['full_name'] ?? 'User')[0],
+                        'sex' => $sex,
+                        'date_of_birth' => $user['date_of_birth'] ?? null,
+                    ],
+                    'http_errors' => false
+                ]);
+            }
+
+            // Get recommendations
+            $response = $client->request('GET', $this->openAIConfig->logMealBaseUrl . '/recommend/dish', [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $this->openAIConfig->logMealToken
+                ],
+                'http_errors' => false,
+                'timeout' => 30
+            ]);
+
+            if ($response->getStatusCode() !== 200) {
+                log_message('error', 'LogMeal Recommendation failed: ' . $response->getBody());
+                return sendApiResponse(null, 'Failed to fetch recommendations', 500);
+            }
+
+            $recommendations = json_decode($response->getBody(), true);
+
+            return sendApiResponse($recommendations, 'Food recommendations retrieved successfully');
+        } catch (\Throwable $e) {
+            log_message('error', 'Recommendations error: ' . $e->getMessage());
+            return sendApiResponse(null, 'An error occurred while fetching recommendations', 500);
+        }
+    }
+
+    /**
      * Upload and analyze food image
      * POST /api/food-logs/analyze
      * 
@@ -111,25 +239,36 @@ class FoodController extends BaseController
     public function upload(): ResponseInterface
     {
         try {
+            // Increase execution time for AI analysis
+            set_time_limit(180);
+
             // Validate authentication
             if (!$this->current_user_id) {
                 return sendApiResponse(null, 'User not authenticated', 401);
             }
 
-            // Check analysis mode - skip API key validation in mock mode
-            $mode = $this->openAIConfig->foodAnalysisMode;
+            // Determine analysis mode (allow override from request)
+            $mode = $this->request->getPost('analysis_type') ?? $this->openAIConfig->foodAnalysisMode;
 
-            if ($mode !== 'mock') {
-                // Validate API key based on mode
-                if ($mode === 'clarifai' && empty($this->openAIConfig->clarifaiApiKey)) {
-                    log_message('error', 'Clarifai API key not configured');
-                    return sendApiResponse(null, 'AI service not configured', 500);
-                }
+            // Validate API key based on mode
+            if ($mode === 'clarifai' && empty($this->openAIConfig->clarifaiApiKey)) {
+                log_message('error', 'Clarifai API key not configured');
+                return sendApiResponse(null, 'Clarifai service not configured', 500);
+            }
 
-                if ($mode === 'openai' && empty($this->openAIConfig->apiKey)) {
-                    log_message('error', 'OpenAI API key not configured');
-                    return sendApiResponse(null, 'AI service not configured', 500);
-                }
+            if ($mode === 'openai' && empty($this->openAIConfig->apiKey)) {
+                log_message('error', 'OpenAI API key not configured');
+                return sendApiResponse(null, 'OpenAI service not configured', 500);
+            }
+
+            if ($mode === 'gemini' && empty($this->openAIConfig->geminiApiKey)) {
+                log_message('error', 'Gemini API key not configured');
+                return sendApiResponse(null, 'Gemini service not configured', 500);
+            }
+
+            if ($mode === 'logmeal' && empty($this->openAIConfig->logMealToken)) {
+                log_message('error', 'LogMeal API token not configured');
+                return sendApiResponse(null, 'LogMeal service not configured', 500);
             }
 
             // Validate file upload
@@ -152,8 +291,8 @@ class FoodController extends BaseController
                 return sendApiResponse(null, 'File size too large. Maximum 20MB allowed', 400);
             }
 
-            // Move file to uploads directory
-            $uploadPath = WRITEPATH . 'uploads/food/';
+            // Move file to public/uploads/food directory
+            $uploadPath = rtrim(FCPATH, '\\/') . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'food' . DIRECTORY_SEPARATOR;
             if (!is_dir($uploadPath)) {
                 mkdir($uploadPath, 0755, true);
             }
@@ -165,9 +304,6 @@ class FoodController extends BaseController
             // Convert image to base64
             $imageData = base64_encode(file_get_contents($filePath));
 
-            // Analyze food based on configured mode
-            $mode = $this->openAIConfig->foodAnalysisMode;
-
             switch ($mode) {
                 case 'openai':
                     $base64Image = "data:{$mimeType};base64,{$imageData}";
@@ -178,10 +314,16 @@ class FoodController extends BaseController
                     $nutritionData = $this->analyzeFoodClarifai($imageData);
                     break;
 
-                case 'mock':
-                default:
-                    $nutritionData = $this->analyzeFoodMock($fileName);
+                case 'gemini':
+                    $nutritionData = $this->analyzeFoodGemini($mimeType, $imageData);
                     break;
+
+                case 'logmeal':
+                    $nutritionData = $this->analyzeFoodLogMeal($filePath, $mimeType, $fileName);
+                    break;
+
+                default:
+                    return sendApiResponse(null, 'Invalid or unsupported analysis mode: ' . $mode, 400);
             }
 
             if (!$nutritionData) {
@@ -194,51 +336,12 @@ class FoodController extends BaseController
                 return sendApiResponse(null, $errorMsg, 500);
             }
 
-            // Get optional parameters
-            $mealType = $this->request->getPost('meal_type');
-            $consumedAt = $this->request->getPost('consumed_at') ?? date('Y-m-d H:i:s');
-            $saveLog = $this->request->getPost('save_log') !== 'false'; // default true
-
-            // Save to database if requested
-            $logId = null;
-            if ($saveLog) {
-                $logData = [
-                    'user_id' => $this->current_user_id,
-                    'food_name' => $nutritionData['food_name'] ?? 'Unknown Food',
-                    'image_path' => 'uploads/food/' . $fileName,
-                    'portion_size' => $nutritionData['portion_size'] ?? null,
-                    'calories' => $nutritionData['calories'] ?? 0,
-                    'protein' => $nutritionData['protein'] ?? 0,
-                    'carbohydrates' => $nutritionData['carbohydrates'] ?? 0,
-                    'fat' => $nutritionData['fat'] ?? 0,
-                    'fiber' => $nutritionData['fiber'] ?? 0,
-                    'sugar' => $nutritionData['sugar'] ?? 0,
-                    'sodium' => $nutritionData['sodium'] ?? 0,
-                    'other_nutrients' => $nutritionData['other_nutrients'] ?? [],
-                    'confidence_score' => $nutritionData['confidence'] ?? $nutritionData['confidence_score'] ?? null,
-                    'raw_analysis' => json_encode($nutritionData),
-                    'meal_type' => $mealType,
-                    'consumed_at' => $consumedAt,
-                ];
-
-                $logId = $this->foodLogModel->insert($logData);
-
-                if (!$logId) {
-                    log_message('warning', 'Failed to save food log to database');
-                }
-            }
-
-            // Prepare response
-            $response = [
-                'id' => $logId,
+            // Return only the analysis result
+            return sendApiResponse([
                 'image_path' => 'uploads/food/' . $fileName,
                 'analysis' => $nutritionData,
-                'meal_type' => $mealType,
-                'consumed_at' => $consumedAt,
                 'analyzed_at' => date('Y-m-d H:i:s')
-            ];
-
-            return sendApiResponse($response, 'Food image analyzed successfully', 201);
+            ], 'Food image analyzed successfully', 200);
         } catch (\Throwable $e) {
             log_message('error', 'Food upload error: ' . $e->getMessage());
 
@@ -363,7 +466,7 @@ class FoodController extends BaseController
 
             // Optionally delete the image file
             if (!empty($log['image_path'])) {
-                $imagePath = WRITEPATH . $log['image_path'];
+                $imagePath = rtrim(FCPATH, '\\/') . DIRECTORY_SEPARATOR . ltrim($log['image_path'], '\\/');
                 if (file_exists($imagePath)) {
                     @unlink($imagePath);
                 }
@@ -415,7 +518,8 @@ class FoodController extends BaseController
                     'Content-Type' => 'application/json'
                 ],
                 'json' => $payload,
-                'http_errors' => false // Don't throw exceptions on HTTP errors
+                'http_errors' => false, // Don't throw exceptions on HTTP errors
+                'timeout' => 120
             ]);
 
             $statusCode = $response->getStatusCode();
@@ -517,7 +621,8 @@ class FoodController extends BaseController
                     'Content-Type' => 'application/json'
                 ],
                 'json' => $payload,
-                'http_errors' => false
+                'http_errors' => false,
+                'timeout' => 120
             ]);
 
             $statusCode = $response->getStatusCode();
@@ -617,87 +722,159 @@ class FoodController extends BaseController
     }
 
     /**
-     * Analyze food using mock data (for testing without API)
+     * Analyze food using Gemini 1.5 Flash API
      * 
-     * @param string $fileName File name to generate mock data
-     * @return array Mock nutrition data
+     * @param string $mimeType Image MIME type
+     * @param string $base64Image Base64 encoded image (without prefix)
+     * @return array|null Nutrition data or null on failure
      */
-    private function analyzeFoodMock(string $fileName): array
+    private function analyzeFoodGemini(string $mimeType, string $base64Image): ?array
     {
-        // Generate realistic mock data based on file name or random selection
-        $mockFoods = [
-            [
-                'food_name' => 'Grilled Chicken Salad',
-                'portion_size' => '1 serving (300g)',
-                'calories' => 250,
-                'protein' => 35,
-                'carbohydrates' => 12,
-                'fat' => 8,
-                'fiber' => 4,
-                'sugar' => 6,
-                'sodium' => 350,
-                'confidence' => 92
-            ],
-            [
-                'food_name' => 'Margherita Pizza',
-                'portion_size' => '2 slices (180g)',
-                'calories' => 540,
-                'protein' => 22,
-                'carbohydrates' => 68,
-                'fat' => 18,
-                'fiber' => 4,
-                'sugar' => 8,
-                'sodium' => 1200,
-                'confidence' => 88
-            ],
-            [
-                'food_name' => 'Chicken Fried Rice',
-                'portion_size' => '1 bowl (400g)',
-                'calories' => 450,
-                'protein' => 28,
-                'carbohydrates' => 55,
-                'fat' => 12,
-                'fiber' => 3,
-                'sugar' => 4,
-                'sodium' => 800,
-                'confidence' => 85
-            ],
-            [
-                'food_name' => 'Fresh Fruit Salad',
-                'portion_size' => '1 cup (200g)',
-                'calories' => 120,
-                'protein' => 2,
-                'carbohydrates' => 30,
-                'fat' => 0.5,
-                'fiber' => 5,
-                'sugar' => 24,
-                'sodium' => 5,
-                'confidence' => 90
-            ],
-            [
-                'food_name' => 'Cheeseburger with Fries',
-                'portion_size' => '1 serving',
-                'calories' => 850,
-                'protein' => 35,
-                'carbohydrates' => 75,
-                'fat' => 45,
-                'fiber' => 6,
-                'sugar' => 12,
-                'sodium' => 1400,
-                'confidence' => 94
-            ]
-        ];
+        try {
+            $client = \Config\Services::curlrequest();
 
-        // Select a random food item for variety
-        $selectedFood = $mockFoods[array_rand($mockFoods)];
+            $payload = [
+                'contents' => [
+                    [
+                        'parts' => [
+                            [
+                                'text' => 'Analyze this food image and provide detailed nutritional information in JSON format. Return only a JSON object with these keys: food_name, portion_size, calories, protein, carbohydrates, fat, fiber, sugar, sodium, confidence_score. All nutrient values should be numbers (in grams/mg as appropriate), confidence_score should be 0-100. If multiple food items are present, provide the combined nutritional value for the whole meal shown.'
+                            ],
+                            [
+                                'inline_data' => [
+                                    'mime_type' => $mimeType,
+                                    'data' => $base64Image
+                                ]
+                            ]
+                        ]
+                    ]
+                ]
+            ];
 
-        // Add timestamp and additional fields
-        $selectedFood['analyzed_at'] = date('Y-m-d H:i:s');
-        $selectedFood['analysis_mode'] = 'mock';
-        $selectedFood['other_nutrients'] = [];
+            $url = $this->openAIConfig->geminiBaseUrl . '/' . $this->openAIConfig->geminiModel . ':generateContent?key=' . $this->openAIConfig->geminiApiKey;
 
-        log_message('info', 'Mock food analysis: ' . $selectedFood['food_name']);
+            $response = $client->request('POST', $url, [
+                'headers' => [
+                    'Content-Type' => 'application/json'
+                ],
+                'json' => $payload,
+                'http_errors' => false,
+                'timeout' => 120
+            ]);
 
-        return $selectedFood;
+            $statusCode = $response->getStatusCode();
+            $body = json_decode($response->getBody(), true);
+
+            if ($statusCode !== 200) {
+                log_message('error', 'Gemini API error (' . $statusCode . '): ' . $response->getBody());
+                return null;
+            }
+
+            $content = $body['candidates'][0]['content']['parts'][0]['text'] ?? null;
+
+            if (!$content) {
+                log_message('error', 'No content in Gemini response');
+                return null;
+            }
+
+            $nutritionData = json_decode($content, true);
+
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                log_message('error', 'Failed to parse JSON from Gemini response');
+                return null;
+            }
+
+            return $nutritionData;
+        } catch (\Throwable $e) {
+            log_message('error', 'Gemini API call failed: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Analyze food using LogMeal API
+     * 
+     * @param string $filePath Path to the image file
+     * @param string $mimeType MIME type of the image
+     * @param string $fileName Original filename
+     * @return array|null Nutrition data or null on failure
+     */
+    private function analyzeFoodLogMeal(string $filePath, string $mimeType, string $fileName): ?array
+    {
+        try {
+            $client = \Config\Services::curlrequest();
+
+            // Step 1: Image Segmentation (upload image)
+            $response = $client->request('POST', $this->openAIConfig->logMealBaseUrl . '/image/segmentation/complete', [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $this->openAIConfig->logMealToken
+                ],
+                'multipart' => [
+                    'image' => new \CURLFile($filePath, $mimeType, $fileName)
+                ],
+                'http_errors' => false,
+                'timeout' => 120
+            ]);
+
+            if ($response->getStatusCode() !== 200) {
+                log_message('error', 'LogMeal Step 1 failed: ' . $response->getBody());
+                return null;
+            }
+
+            $body1 = json_decode($response->getBody(), true);
+            $imageId = $body1['imageId'] ?? null;
+
+            if (!$imageId) {
+                log_message('error', 'LogMeal failed to return imageId');
+                return null;
+            }
+
+            // Step 2: Get Nutritional Info
+            $response = $client->request('POST', $this->openAIConfig->logMealBaseUrl . '/nutrition/recipe/nutritionalInfo', [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $this->openAIConfig->logMealToken,
+                    'Content-Type'  => 'application/json'
+                ],
+                'json' => [
+                    'imageId' => $imageId
+                ],
+                'http_errors' => false,
+                'timeout' => 120
+            ]);
+
+            if ($response->getStatusCode() !== 200) {
+                log_message('error', 'LogMeal Step 2 failed: ' . $response->getBody());
+                return null;
+            }
+
+            $body2 = json_decode($response->getBody(), true);
+            
+            // Map LogMeal response to our nutritionData structure
+            $nutrients = $body2['nutritional_info'] ?? [];
+            
+            return [
+                'food_name' => $body2['foodName'] ?? (is_array($body2['food_names'] ?? null) ? $body2['food_names'][0] : 'Unknown Food'),
+                'portion_size' => 'Standard portion',
+                'calories' => $nutrients['calories'] ?? 0,
+                'protein' => $nutrients['total_nutrients']['protein']['quantity'] ?? ($nutrients['protein'] ?? 0),
+                'carbohydrates' => $nutrients['total_nutrients']['chocdf']['quantity'] ?? ($nutrients['carbohydrates'] ?? 0),
+                'fat' => $nutrients['total_nutrients']['fat']['quantity'] ?? ($nutrients['fat'] ?? 0),
+                'fiber' => $nutrients['total_nutrients']['fibtg']['quantity'] ?? ($nutrients['fiber'] ?? 0),
+                'sugar' => $nutrients['total_nutrients']['sugar']['quantity'] ?? ($nutrients['sugar'] ?? 0),
+                'sodium' => $nutrients['total_nutrients']['na']['quantity'] ?? ($nutrients['sodium'] ?? 0),
+                'confidence_score' => isset($body1['recognition_results'][0]['prob']) ? round($body1['recognition_results'][0]['prob'] * 100) : 100,
+                
+                // Extra Free Features from LogMeal
+                'food_type' => $body1['recognition_results'][0]['food_type'] ?? null,
+                'food_family' => $body1['recognition_results'][0]['food_family'] ?? null,
+                'nutritional_score' => $body2['nutritional_score'] ?? null, // A, B, C, D, E
+                'intake_reference' => $body2['dailyIntakeReference'] ?? null, // LOW, MEDIUM, HIGH
+                
+                'raw_logmeal_response' => $body2
+            ];
+        } catch (\Throwable $e) {
+            log_message('error', 'LogMeal API call failed: ' . $e->getMessage());
+            return null;
+        }
     }
 }

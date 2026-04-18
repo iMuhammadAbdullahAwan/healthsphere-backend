@@ -509,8 +509,12 @@ class Users extends BaseController
             // Generate unique filename
             $newName = $userId . '_' . time() . '.' . $file->getExtension();
 
-            // Move file to uploads directory
-            $file->move(WRITEPATH . 'uploads/profiles', $newName);
+            // Move file to public/uploads/profiles directory
+            $uploadPath = rtrim(FCPATH, '\\/') . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'profiles';
+            if (!is_dir($uploadPath)) {
+                mkdir($uploadPath, 0755, true);
+            }
+            $file->move($uploadPath, $newName);
 
             // Update user profile
             $imagePath = 'uploads/profiles/' . $newName;

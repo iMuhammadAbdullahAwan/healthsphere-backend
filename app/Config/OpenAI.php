@@ -18,6 +18,15 @@ class OpenAI extends BaseConfig
     public string $clarifaiUserId = 'clarifai';
     public string $clarifaiAppId = 'main';
 
+    // Gemini Configuration
+    public string $geminiApiKey;
+    public string $geminiModel = 'gemini-2.0-flash-lite';
+    public string $geminiBaseUrl = 'https://generativelanguage.googleapis.com/v1beta/models';
+
+    // LogMeal Configuration
+    public string $logMealToken;
+    public string $logMealBaseUrl = 'https://api.logmeal.com/v2';
+
     // Food Analysis Mode
     public string $foodAnalysisMode;
 
@@ -26,6 +35,8 @@ class OpenAI extends BaseConfig
         parent::__construct();
         $this->apiKey = env('OPENAI_API_KEY', '');
         $this->clarifaiApiKey = env('CLARIFAI_API_KEY', '');
-        $this->foodAnalysisMode = env('FOOD_ANALYSIS_MODE', 'mock');
+        $this->geminiApiKey = env('Gemini_API_KEY', '');
+        $this->logMealToken = env('LOGMEAL_API_TOKEN', '');
+        $this->foodAnalysisMode = env('FOOD_ANALYSIS_MODE', 'gemini');
     }
 }

@@ -283,9 +283,9 @@ curl -X DELETE http://your-domain.com/api/users/account \
 
 ## Profile Image Storage
 
-Profile images are stored in the server's writable directory:
+Profile images are stored in the server's public directory:
 ```
-writable/uploads/profiles/
+public/uploads/profiles/
 ```
 
 **Naming Convention:**
@@ -301,7 +301,7 @@ writable/uploads/profiles/
 **Accessing Images:**
 The `profile_img` field in the response contains the relative path. To display:
 ```
-http://your-domain.com/writable/uploads/profiles/1_1737123456.jpg
+http://your-domain.com/uploads/profiles/1_1737123456.jpg
 ```
 
 ---

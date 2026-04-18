@@ -73,8 +73,10 @@ $routes->group('api', ['namespace' => 'App\Controllers\Api'], function ($routes)
 
         // Food Routes (AI-powered food analysis and logging)
         $routes->get('food-logs', 'FoodController::index'); // ?meal_type=lunch&start_date=2024-01-01
+        $routes->post('food-logs', 'FoodController::create'); // Manual or confirmed food logging
         $routes->get('food-logs/summary', 'FoodController::summary'); // ?start_date=...&end_date=...
         $routes->get('food-logs/daily', 'FoodController::daily'); // ?days=7
+        $routes->get('food-logs/recommendations', 'FoodController::recommendations');
         $routes->get('food-logs/(:num)', 'FoodController::show/$1');
         $routes->post('food-logs/analyze', 'FoodController::upload'); // Upload & analyze food image
         $routes->put('food-logs/(:num)', 'FoodController::update/$1');

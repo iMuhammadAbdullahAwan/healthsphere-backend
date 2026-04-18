@@ -308,17 +308,17 @@ class ScheduleController extends BaseController
             }
 
             // Insert schedule
-            // Handle uploaded image file (multipart/form-data). If a file is provided move it to writable/uploads/schedules/
+            // Handle uploaded image file (multipart/form-data). If a file is provided move it to public/uploads/schedules/
             if ($file && $file->isValid() && !$file->hasMoved()) {
-                $uploadPath = WRITEPATH . 'uploads' . DIRECTORY_SEPARATOR . 'schedules';
+                $uploadPath = rtrim(FCPATH, '\\/') . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'schedules';
                 if (!is_dir($uploadPath)) {
                     mkdir($uploadPath, 0755, true);
                 }
                 $newName = $file->getRandomName();
                 try {
                     $file->move($uploadPath, $newName);
-                    // Store a web-servable relative path so frontend can request it: writable/uploads/schedules/<name>
-                    $data['image'] = 'writable/uploads/schedules/' . $newName;
+                    // Store a web-servable relative path so frontend can request it: uploads/schedules/<name>
+                    $data['image'] = 'uploads/schedules/' . $newName;
                 } catch (\Throwable $e) {
                     log_message('error', 'Schedule image upload failed: ' . $e->getMessage());
                     return sendApiResponse(null, 'Failed to upload image', 500);
@@ -413,14 +413,14 @@ class ScheduleController extends BaseController
 
             // Handle uploaded image file for update (multipart/form-data)
             if ($file && $file->isValid() && !$file->hasMoved()) {
-                $uploadPath = WRITEPATH . 'uploads' . DIRECTORY_SEPARATOR . 'schedules';
+                $uploadPath = rtrim(FCPATH, '\\/') . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'schedules';
                 if (!is_dir($uploadPath)) {
                     mkdir($uploadPath, 0755, true);
                 }
                 $newName = $file->getRandomName();
                 try {
                     $file->move($uploadPath, $newName);
-                    $data['image'] = 'writable/uploads/schedules/' . $newName;
+                    $data['image'] = 'uploads/schedules/' . $newName;
                 } catch (\Throwable $e) {
                     log_message('error', 'Schedule image upload failed on update: ' . $e->getMessage());
                     return sendApiResponse(null, 'Failed to upload image', 500);
