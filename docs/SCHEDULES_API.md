@@ -19,7 +19,7 @@ This document describes schedule and schedule_log statuses, common scenarios (ca
 
 - **List schedules (with filters & pagination)**
   - GET /api/schedules
-  - Query params: `page` (int), `per_page` (int), `filter` (today|upcoming|history), `type` (medicine|food|water|running|sleep|custom), `status` (active|paused|completed|canceled), `start_date` (YYYY-MM-DD), `end_date` (YYYY-MM-DD)
+  - Query params: `page` (int), `per_page` (int), `filter` (today|upcoming|history), `type` (medicine|food|water|running|sleep|custom), `status` (active|paused|completed|canceled), `start_date` (YYYY-MM-DD), `end_date` (YYYY-MM-DD), `days` (for `filter=upcoming`), `q` or `search` (keyword)
   - Example: `/api/schedules?filter=upcoming&days=7&page=1&per_page=20`
   - Search: add `q` to search by schedule title (e.g. `?q=morning`).
 
@@ -54,22 +54,37 @@ This document describes schedule and schedule_log statuses, common scenarios (ca
   - Body examples:
     - Cancel only today: `{ "scope": "one", "date": "2026-03-28" }`
     - Cancel entire schedule (master cancel): `{ "scope": "all" }`
-  - Behavior: when `scope=one`, controller finds the `schedule_logs` row where `DATE(scheduled_for) = date` and sets that occurrence's status to `canceled`. Parent schedule remains unchanged.
+  - Behavior: when `scope=one`, controller archives the matching occurrence into `schedule_history` with status `canceled` and deletes the original row from `schedule_logs`. Parent schedule remains unchanged.
 
 - **Uncancel (redo) a single occurrence or entire schedule**
   - POST /api/schedules/{id}/uncancel
   - Body examples:
     - Uncancel one day: `{ "scope": "one", "date": "2026-03-28" }`
     - Uncancel entire schedule: `{ "scope": "all" }` (sets schedule status back to `active`)
+  - Behavior: when `scope=one`, controller restores/creates a `pending` occurrence in `schedule_logs` and removes matching `canceled` history rows.
+
+- **Mark done (schedule or single occurrence)**
+  - POST /api/schedules/{id}/done
+  - Body examples:
+    - Mark one occurrence done: `{ "scope": "one", "date": "2026-03-28" }`
+    - Mark entire schedule done: `{ "scope": "all" }`
+  - Behavior: when `scope=one`, controller archives the occurrence in `schedule_history` with status `completed` and removes it from `schedule_logs`; when `scope=all`, parent schedule status is set to `completed`.
+
+- **Undo done (schedule or single occurrence)**
+  - POST /api/schedules/{id}/undone
+  - Body examples:
+    - Undo one occurrence: `{ "scope": "one", "date": "2026-03-28" }`
+    - Undo entire schedule: `{ "scope": "all" }`
+  - Behavior: when `scope=one`, controller restores/creates a `pending` occurrence and removes matching `completed` history rows; when `scope=all`, schedule status is restored to `active` and archived completed occurrences are restored.
 
 - **Mark an occurrence completed**
   - POST /api/schedules/logs/{logId}/complete
   - Body (optional): `{ "notes": "Completed on time" }`
-  - Behavior: sets `schedule_logs.status = 'completed'` and `completed_at` timestamp.
+  - Behavior: controller archives the log into `schedule_history` with status `completed` and deletes the original row from `schedule_logs`.
 
 - **Undo a completed occurrence (set back to pending)**
   - POST /api/schedules/logs/{logId}/undo
-  - Behavior: controller sets the given log back to `status = 'pending'` and clears `completed_at`.
+  - Behavior: if the log still exists, it is updated back to `pending`; otherwise controller restores it from `schedule_history`.
 
 - **Delete a schedule**
   - DELETE /api/schedules/{id}
