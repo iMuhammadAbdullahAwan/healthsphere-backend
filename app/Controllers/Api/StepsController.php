@@ -95,23 +95,24 @@ class StepsController extends BaseController
                 return sendApiResponse(null, 'Validation failed', 400, $this->validator->getErrors());
             }
 
-            $steps = (int)$this->request->getPost('steps');
+            $steps = (int)$this->request->getVar('steps');
             
             // Calculate calories if not provided (rough estimate: 0.04 kcal per step)
-            $calories = $this->request->getPost('calories') ?? ($steps * 0.04);
+            $calories = $this->request->getVar('calories') ?? ($steps * 0.04);
 
             $data = [
                 'user_id'          => $this->current_user_id,
                 'steps'            => $steps,
-                'distance_km'      => $this->request->getPost('distanceKm'),
-                'duration_seconds' => $this->request->getPost('durationSeconds'),
+                'distance_km'      => $this->request->getVar('distanceKm'),
+                'duration_seconds' => $this->request->getVar('durationSeconds'),
                 'calories'         => $calories,
-                'started_at'       => $this->request->getPost('startedAt'),
+                'started_at'       => $this->request->getVar('startedAt'),
             ];
 
             $id = $this->stepSessionModel->insert($data);
 
             if (!$id) {
+                log_message('error', 'Step session save failed: ' . json_encode($this->stepSessionModel->errors()));
                 return sendApiResponse(null, 'Failed to save session', 500);
             }
 
