@@ -72,6 +72,11 @@ class NotificationModel extends Model
         $builder->join('notifications n', 'n.id = nu.notification_id');
         $builder->join('users u', 'u.id = n.created_by');
         $builder->where('nu.user_id', $userId);
+
+        if (!empty($filters['search'])) {
+            $builder->like('n.message', $filters['search']);
+        }
+
         $builder->orderBy('nu.created_at', 'DESC');
 
         $total = $builder->countAllResults(false);

@@ -29,6 +29,7 @@ Retrieve all notifications for the authenticated user with optional filters.
 **Authentication:** Required
 
 **Query Parameters:**
+- `search` (optional): Search by notification message
 - `type` (optional): Filter by notification type
 - `read` (optional): Filter by read status (`0` for unread, `1` for read)
 - `limit` (optional): Number of results per page (default: 20)
@@ -36,7 +37,7 @@ Retrieve all notifications for the authenticated user with optional filters.
 
 **Request Examples:**
 ```
-GET /api/notifications
+GET /api/notifications?search=water
 GET /api/notifications?type=schedule_reminder
 GET /api/notifications?read=0
 GET /api/notifications?limit=10&page=2
@@ -47,32 +48,28 @@ GET /api/notifications?limit=10&page=2
 {
   "status": true,
   "message": "Notifications retrieved successfully",
-  "data": [
-    {
-      "id": 15,
-      "user_id": 1,
-      "type": "schedule_reminder",
-      "message": "Time to take your medicine: Morning Medication",
-      "link": "/schedules/5",
-      "related_id": 5,
-      "is_read": 0,
-      "created_by": 1,
-      "created_at": "2026-01-17 09:00:00",
-      "read_at": null
-    },
-    {
-      "id": 14,
-      "user_id": 1,
-      "type": "system",
-      "message": "Welcome to HealthSphere!",
-      "link": null,
-      "related_id": null,
-      "is_read": 1,
-      "created_by": null,
-      "created_at": "2026-01-15 10:00:00",
-      "read_at": "2026-01-15 11:30:00"
+  "data": {
+    "notifications": [
+      {
+        "id": 15,
+        "user_id": 1,
+        "type": "schedule_reminder",
+        "message": "Time to take your medicine: Morning Medication",
+        "link": "/schedules/5",
+        "related_id": 5,
+        "is_read": 0,
+        "created_by": 1,
+        "created_at": "2026-01-17 09:00:00",
+        "read_at": null
+      }
+    ],
+    "pagination": {
+      "total": 15,
+      "page": 1,
+      "limit": 20,
+      "pages": 1
     }
-  ]
+  }
 }
 ```
 

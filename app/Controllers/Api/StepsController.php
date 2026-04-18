@@ -26,8 +26,8 @@ class StepsController extends BaseController
     }
 
     /**
-     * Get all step sessions (paginated)
-     * GET /api/steps/sessions
+     * Get all step sessions with pagination
+     * GET /api/steps/sessions?page=1&limit=20
      */
     public function index(): ResponseInterface
     {
@@ -36,13 +36,24 @@ class StepsController extends BaseController
                 return sendApiResponse(null, 'User not authenticated', 401);
             }
 
-            $page = $this->request->getGet('page') ?? 1;
-            $limit = 20;
+            $page = $this->request->getVar('page') ?? 1;
+            $limit = $this->request->getVar('limit') ?? 20;
             $offset = ($page - 1) * $limit;
 
-            $sessions = $this->stepSessionModel->getUserSessions($this->current_user_id, $limit, $offset);
+            $query = $this->stepSessionModel->where('user_id', $this->current_user_id);
+            
+            $total = (clone $query)->countAllResults();
+            $sessions = $query->orderBy('started_at', 'DESC')->findAll($limit, $offset);
 
-            return sendApiResponse($sessions, 'Step sessions retrieved successfully');
+            return sendApiResponse([
+                'sessions' => $sessions,
+                'pagination' => [
+                    'total' => $total,
+                    'page' => (int)$page,
+                    'limit' => (int)$limit,
+                    'pages' => ceil($total / $limit)
+                ]
+            ], 'Step sessions retrieved successfully');
         } catch (\Throwable $e) {
             log_message('error', 'Get step sessions error: ' . $e->getMessage());
             return sendApiResponse(null, 'Failed to retrieve sessions', 500);

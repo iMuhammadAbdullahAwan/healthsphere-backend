@@ -91,6 +91,13 @@ $routes->group('api', ['namespace' => 'App\Controllers\Api'], function ($routes)
             $routes->get('tracking/status', 'StepsController::getStatus');
             $routes->patch('tracking', 'StepsController::toggleTracking');
         });
+
+        // Exercise Routes
+        $routes->group('exercises', function ($routes) {
+            $routes->get('', 'ExerciseController::index');
+            $routes->post('', 'ExerciseController::create');
+            $routes->delete('(:num)', 'ExerciseController::delete/$1');
+        });
     });
 });
 

@@ -722,48 +722,8 @@
               "mode": "formdata",
               "formdata": [
                 {
-                  "key": "schedule_type",
-                  "value": "medicine",
-                  "type": "text"
-                },
-                {
-                  "key": "title",
-                  "value": "Morning Medication",
-                  "type": "text"
-                },
-                {
-                  "key": "description",
-                  "value": "Blood pressure medication",
-                  "type": "text"
-                },
-                {
-                  "key": "start_date",
-                  "value": "2026-03-28",
-                  "type": "text"
-                },
-                {
-                  "key": "start_time",
-                  "value": "08:00",
-                  "type": "text"
-                },
-                {
-                  "key": "repeat_type",
-                  "value": "daily",
-                  "type": "text"
-                },
-                {
-                  "key": "medicine_details",
-                  "value": "{\"medicine_name\":\"Lisinopril\",\"dosage_text\":\"10mg\"}",
-                  "type": "text"
-                },
-                {
-                  "key": "reminder_enabled",
-                  "value": "true",
-                  "type": "text"
-                },
-                {
-                  "key": "reminder_mode",
-                  "value": "notification",
+                  "key": "payload",
+                  "value": "{\"schedule_type\":\"medicine\",\"title\":\"Morning Medication\",\"description\":\"Blood pressure medication\",\"start_date\":\"2026-03-28\",\"start_time\":\"08:00\",\"repeat_type\":\"daily\",\"medicine_details\":{\"medicine_name\":\"Lisinopril\",\"dosage_text\":\"10mg\"},\"reminder_enabled\":true,\"reminder_mode\":\"notification\"}",
                   "type": "text"
                 },
                 {
@@ -1156,9 +1116,23 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/food-logs",
+              "raw": "{{base_url}}/api/food-logs?search=chicken&page=1&limit=20",
               "host": ["{{base_url}}"],
-              "path": ["api", "food-logs"]
+              "path": ["api", "food-logs"],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "chicken"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
             }
           },
           "response": []
@@ -1397,13 +1371,17 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/steps/sessions?page=1",
+              "raw": "{{base_url}}/api/steps/sessions?page=1&limit=20",
               "host": ["{{base_url}}"],
               "path": ["api", "steps", "sessions"],
               "query": [
                 {
                   "key": "page",
                   "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
                 }
               ]
             }
@@ -1476,6 +1454,79 @@
               "raw": "{{base_url}}/api/steps/tracking",
               "host": ["{{base_url}}"],
               "path": ["api", "steps", "tracking"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Exercises",
+      "item": [
+        {
+          "name": "Get Exercise History",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/exercises?page=1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "exercises"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Log New Exercise",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"exercise_name\": \"Push Ups\",\n  \"count\": \"3 sets of 20\",\n  \"duration_minutes\": 15,\n  \"performed_at\": \"2026-04-18 17:30:00\",\n  \"notes\": \"Felt strong today!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/exercises",
+              "host": ["{{base_url}}"],
+              "path": ["api", "exercises"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Exercise Log",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/exercises/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "exercises", "1"]
             }
           },
           "response": []

@@ -86,10 +86,8 @@ class FoodController extends BaseController
     }
 
     /**
-     * Get food logs with optional filters
-     * GET /api/food-logs?meal_type=lunch&start_date=2024-01-01
-     * 
-     * @return ResponseInterface
+     * Get food logs with optional search, filters, and pagination
+     * GET /api/food-logs?search=chicken&meal_type=lunch&page=1&limit=20
      */
     public function index(): ResponseInterface
     {
@@ -98,15 +96,41 @@ class FoodController extends BaseController
                 return sendApiResponse(null, 'User not authenticated', 401);
             }
 
-            $filters = [
-                'meal_type' => $this->request->getGet('meal_type'),
-                'start_date' => $this->request->getGet('start_date'),
-                'end_date' => $this->request->getGet('end_date'),
-            ];
+            $search = $this->request->getVar('search');
+            $mealType = $this->request->getVar('meal_type');
+            $startDate = $this->request->getVar('start_date');
+            $endDate = $this->request->getVar('end_date');
+            $page = $this->request->getVar('page') ?? 1;
+            $limit = $this->request->getVar('limit') ?? 20;
+            $offset = ($page - 1) * $limit;
 
-            $logs = $this->foodLogModel->getUserFoodLogs($this->current_user_id, $filters);
+            $query = $this->foodLogModel->where('user_id', $this->current_user_id);
 
-            return sendApiResponse($logs, 'Food logs retrieved successfully', 200);
+            if ($search) {
+                $query->like('food_name', $search);
+            }
+            if ($mealType) {
+                $query->where('meal_type', $mealType);
+            }
+            if ($startDate) {
+                $query->where('consumed_at >=', $startDate . ' 00:00:00');
+            }
+            if ($endDate) {
+                $query->where('consumed_at <=', $endDate . ' 23:59:59');
+            }
+
+            $total = (clone $query)->countAllResults();
+            $logs = $query->orderBy('consumed_at', 'DESC')->findAll($limit, $offset);
+
+            return sendApiResponse([
+                'logs' => $logs,
+                'pagination' => [
+                    'total' => $total,
+                    'page' => (int)$page,
+                    'limit' => (int)$limit,
+                    'pages' => ceil($total / $limit)
+                ]
+            ], 'Food logs retrieved successfully');
         } catch (\Throwable $e) {
             log_message('error', 'Get food logs error: ' . $e->getMessage());
             return sendApiResponse(null, 'Failed to retrieve food logs', 500);

@@ -6,7 +6,7 @@ The Steps API manages hardware-recorded pedometer data and user tracking prefere
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/steps/sessions` | List all step sessions |
+| GET | `/api/steps/sessions` | List all step sessions (with pagination) |
 | POST | `/api/steps/sessions` | Save a new step session |
 | GET | `/api/steps/sessions/{id}` | Get session details |
 | DELETE | `/api/steps/sessions/{id}` | Delete a session |
@@ -33,6 +33,34 @@ Saves a completed walking/running session recorded by the pedometer.
   "status": true,
   "message": "Session saved successfully",
   "data": { "id": 45 }
+}
+```
+
+### Get Step History
+`GET /api/steps/sessions`
+
+Returns a list of all recorded pedometer sessions.
+
+**Query Parameters:**
+- `page`: (optional) Page number
+- `limit`: (optional) Items per page
+
+**Response:**
+```json
+{
+  "status": true,
+  "message": "Step sessions retrieved successfully",
+  "data": {
+    "sessions": [
+      { "id": 45, "steps": 8421, ... }
+    ],
+    "pagination": {
+      "total": 100,
+      "page": 1,
+      "limit": 20,
+      "pages": 5
+    }
+  }
 }
 ```
 

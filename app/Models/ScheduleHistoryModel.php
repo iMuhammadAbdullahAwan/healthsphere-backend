@@ -70,6 +70,13 @@ class ScheduleHistoryModel extends Model
             $builder->where('schedule_history.scheduled_for <=', $filters['end_date']);
         }
 
+        if (!empty($filters['q'])) {
+            $builder->groupStart()
+                ->like('schedules.title', $filters['q'])
+                ->orLike('schedule_history.notes', $filters['q'])
+                ->groupEnd();
+        }
+
         $countBuilder = clone $builder;
         $total = (int) $countBuilder->countAllResults();
 

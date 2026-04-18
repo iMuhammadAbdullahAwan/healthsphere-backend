@@ -44,18 +44,21 @@ Retrieve all schedules for the authenticated user with optional filters.
 **Authentication:** Required
 
 **Query Parameters:**
-- `type` (optional): Filter by schedule type (medicine, food, water, running, sleep, custom)
-- `status` (optional): Filter by status (active, paused, completed)
-- `start_date` (optional): Filter schedules from date (YYYY-MM-DD)
-- `end_date` (optional): Filter schedules until date (YYYY-MM-DD)
+- `filter` (optional): `today`, `upcoming`, `history` (special filters)
+- `search` (optional): Search by schedule title
+- `type` (optional): Filter by schedule type
+- `status` (optional): Filter by status
+- `start_date` (optional): Filter from date (YYYY-MM-DD)
+- `end_date` (optional): Filter until date (YYYY-MM-DD)
+- `page` (optional): Page number (default: 1)
+- `per_page` (optional): Items per page (default: 20)
 
 **Request Examples:**
 ```
-GET /api/schedules
-GET /api/schedules?type=medicine
-GET /api/schedules?status=active
-GET /api/schedules?type=food&status=active
-GET /api/schedules?start_date=2026-01-01&end_date=2026-01-31
+GET /api/schedules?search=medicine
+GET /api/schedules?filter=today
+GET /api/schedules?filter=upcoming&days=14
+GET /api/schedules?filter=history&search=completed
 ```
 
 **Success Response (200):**
@@ -63,39 +66,21 @@ GET /api/schedules?start_date=2026-01-01&end_date=2026-01-31
 {
   "status": true,
   "message": "Schedules retrieved successfully",
-  "data": [
-    {
-      "id": 1,
-      "user_id": 1,
-      "schedule_type": "medicine",
-      "title": "Morning Medication",
-      "description": "Blood pressure medication",
-      "start_date": "2026-01-10",
-      "start_time": "08:00",
-      "repeat_type": "daily",
-      "repeat_days": null,
-      "end_condition": "never",
-      "end_date": null,
-      "max_occurrences": null,
-      "reminder_enabled": true,
-      "reminder_mode": "notification",
-      "voice_command_text": null,
-      "status": "active",
-      "medicine_details": {
-        "medicine_name": "Lisinopril",
-        "dosage_text": "10mg tablet",
-        "medicine_image": null,
-        "instructions": "Take with water"
-      },
-      "food_details": null,
-      "water_details": null,
-      "running_details": null,
-      "sleep_details": null,
-      "custom_details": null,
-      "created_at": "2026-01-10 07:00:00",
-      "updated_at": "2026-01-10 07:00:00"
+  "data": {
+    "schedules": [
+      {
+        "id": 1,
+        "title": "Morning Medication",
+        ...
+      }
+    ],
+    "pagination": {
+      "total": 5,
+      "page": 1,
+      "limit": 20,
+      "pages": 1
     }
-  ]
+  }
 }
 ```
 

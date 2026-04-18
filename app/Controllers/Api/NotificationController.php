@@ -23,10 +23,23 @@ class NotificationController extends BaseController
     public function index(): ResponseInterface
     {
         try {
-            $filters = $this->request->getGet();
-            $notifications = $this->notificationModel->getUserNotifications($this->current_user_id, $filters);
+            $filters = [
+                'search' => $this->request->getVar('search'),
+                'page'   => (int)($this->request->getVar('page') ?? 1),
+                'limit'  => (int)($this->request->getVar('limit') ?? 20),
+            ];
+            
+            $results = $this->notificationModel->getUserNotifications($this->current_user_id, $filters);
 
-            return sendApiResponse($notifications, 'Notifications retrieved successfully', 200);
+            return sendApiResponse([
+                'notifications' => $results['data'],
+                'pagination' => [
+                    'total' => $results['pagination']['total'],
+                    'page' => (int)$results['pagination']['page'],
+                    'limit' => (int)$results['pagination']['limit'],
+                    'pages' => ceil($results['pagination']['total'] / $results['pagination']['limit'])
+                ]
+            ], 'Notifications retrieved successfully', 200);
         } catch (\Throwable $e) {
             log_message('error', 'Get notifications error: ' . $e->getMessage());
             return sendApiResponse(null, 'Failed to retrieve notifications', 500);

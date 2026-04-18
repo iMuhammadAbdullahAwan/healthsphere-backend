@@ -77,13 +77,29 @@ class ScheduleController extends BaseController
             // Handle special filters
             switch ($filter) {
                 case 'today':
-                    $schedules = $this->scheduleModel->getTodaySchedules($this->current_user_id, $page, $perPage);
-                    return sendApiResponse($schedules, 'Today\'s schedules retrieved successfully', 200);
+                    $results = $this->scheduleModel->getTodaySchedules($this->current_user_id, $page, $perPage);
+                    return sendApiResponse([
+                        'schedules' => $results['data'],
+                        'pagination' => [
+                            'total' => $results['meta']['total'],
+                            'page' => (int)$results['meta']['page'],
+                            'limit' => (int)$results['meta']['per_page'],
+                            'pages' => $results['meta']['total_pages']
+                        ]
+                    ], 'Today\'s schedules retrieved successfully', 200);
 
                 case 'upcoming':
                     $days = $this->request->getGet('days') ?? 7;
-                    $schedules = $this->scheduleModel->getUpcomingSchedules($this->current_user_id, (int)$days, $page, $perPage);
-                    return sendApiResponse($schedules, 'Upcoming schedules retrieved successfully', 200);
+                    $results = $this->scheduleModel->getUpcomingSchedules($this->current_user_id, (int)$days, $page, $perPage);
+                    return sendApiResponse([
+                        'schedules' => $results['data'],
+                        'pagination' => [
+                            'total' => $results['meta']['total'],
+                            'page' => (int)$results['meta']['page'],
+                            'limit' => (int)$results['meta']['per_page'],
+                            'pages' => $results['meta']['total_pages']
+                        ]
+                    ], 'Upcoming schedules retrieved successfully', 200);
 
                 case 'history':
                     $historyFilters = [
@@ -91,9 +107,18 @@ class ScheduleController extends BaseController
                         'status'        => $this->request->getGet('status'),
                         'start_date'    => $this->request->getGet('start_date'),
                         'end_date'      => $this->request->getGet('end_date'),
+                        'q'             => $this->request->getGet('search'), // search in notes/snapshot
                     ];
-                    $history = $this->scheduleHistoryModel->getUserHistory($this->current_user_id, $historyFilters, $page, $perPage);
-                    return sendApiResponse($history, 'Schedule history retrieved successfully', 200);
+                    $results = $this->scheduleHistoryModel->getUserHistory($this->current_user_id, $historyFilters, $page, $perPage);
+                    return sendApiResponse([
+                        'history' => $results['data'],
+                        'pagination' => [
+                            'total' => $results['meta']['total'],
+                            'page' => (int)$results['meta']['page'],
+                            'limit' => (int)$results['meta']['per_page'],
+                            'pages' => $results['meta']['total_pages']
+                        ]
+                    ], 'Schedule history retrieved successfully', 200);
 
                 default:
                     // Get all schedules with filters
@@ -102,10 +127,18 @@ class ScheduleController extends BaseController
                         'status'        => $this->request->getGet('status'),
                         'start_date'    => $this->request->getGet('start_date'),
                         'end_date'      => $this->request->getGet('end_date'),
-                        'q'             => $this->request->getGet('q'), // search query for title
+                        'q'             => $this->request->getGet('search') ?? $this->request->getGet('q'), // support both
                     ];
-                    $schedules = $this->scheduleModel->getUserSchedules($this->current_user_id, $filters, $page, $perPage);
-                    return sendApiResponse($schedules, 'Schedules retrieved successfully', 200);
+                    $results = $this->scheduleModel->getUserSchedules($this->current_user_id, $filters, $page, $perPage);
+                    return sendApiResponse([
+                        'schedules' => $results['data'],
+                        'pagination' => [
+                            'total' => $results['meta']['total'],
+                            'page' => (int)$results['meta']['page'],
+                            'limit' => (int)$results['meta']['per_page'],
+                            'pages' => $results['meta']['total_pages']
+                        ]
+                    ], 'Schedules retrieved successfully', 200);
             }
         } catch (\Throwable $e) {
             log_message('error', 'Get schedules error: ' . $e->getMessage());

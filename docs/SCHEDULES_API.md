@@ -33,8 +33,11 @@ This document describes schedule and schedule_log statuses, common scenarios (ca
 - **Create schedule**
   - POST /api/schedules
   - Body: JSON with schedule fields (see backend validation in `ScheduleModel`).
-  - File upload (image): The API accepts multipart/form-data for image uploads. Send a form field named `payload` containing the JSON body, and a file field named `image`.
-    Example using form-data:
+  - File upload (image): The API accepts multipart/form-data for image uploads.
+  - You can send either:
+    - direct form fields (`title`, `schedule_type`, `medicine_details`, etc.) plus `image`
+    - or `payload` (JSON string for the body) plus `image`
+  - Example using `payload`:
     - `payload`: `{ "title": "Morning Medication", "schedule_type": "medicine", "medicine_details": { ... } }`
     - `image`: (file) `morning_med.png`
   - Stored path: uploaded files are saved under `public/uploads/schedules/` and the `image` field will contain a relative path like `uploads/schedules/<filename>`.
@@ -81,9 +84,4 @@ This document describes schedule and schedule_log statuses, common scenarios (ca
 - All protected endpoints require `Authorization: Bearer <token>` header.
 - Typical error codes: `401` (unauthenticated), `400` (bad request/validation), `404` (not found), `500` (server error). Handle and surface messages from API responses.
 
-If you want, I can add Postman examples (body + sample responses) into the `postman/postman-collection.json` for the `cancel`, `uncancel`, and `undo` requests.
-
-***
 File: app/Config/Routes.php (routes referenced) — see this file for route mappings.
-
-*** End Patch

@@ -14,6 +14,7 @@ This documentation covers all available API endpoints organized by feature:
 - **[Schedules](SCHEDULES.md)** - Complete schedule management system
 - **[Food & Nutrition](FOOD.md)** - AI analysis and food logging
 - **[Step Tracking](STEPS.md)** - Pedometer sessions and tracking goals
+- **[Exercise Logging](EXERCISES.md)** - Manual activity tracking and history
 
 ### Testing
 
