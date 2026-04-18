@@ -30,16 +30,12 @@ Retrieve all notifications for the authenticated user with optional filters.
 
 **Query Parameters:**
 - `search` (optional): Search by notification message
-- `type` (optional): Filter by notification type
-- `read` (optional): Filter by read status (`0` for unread, `1` for read)
 - `limit` (optional): Number of results per page (default: 20)
 - `page` (optional): Page number for pagination (default: 1)
 
 **Request Examples:**
 ```
 GET /api/notifications?search=water
-GET /api/notifications?type=schedule_reminder
-GET /api/notifications?read=0
 GET /api/notifications?limit=10&page=2
 ```
 

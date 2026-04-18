@@ -15,10 +15,11 @@ This documentation covers all available API endpoints organized by feature:
 - **[Food & Nutrition](FOOD.md)** - AI analysis and food logging
 - **[Step Tracking](STEPS.md)** - Pedometer sessions and tracking goals
 - **[Exercise Logging](EXERCISES.md)** - Manual activity tracking and history
+- **[Schedules Frontend Reference](SCHEDULES_API.md)** - Schedule status flows and advanced actions
 
 ### Testing
 
-- **[Postman Collection](postman-collection.json)** - Import this JSON file into Postman for instant API testing
+- **[Postman Collection](../postman/postman-collection.json)** - Import this JSON file into Postman for instant API testing
 
 ---
 
@@ -28,7 +29,7 @@ This documentation covers all available API endpoints organized by feature:
 
 1. Open Postman
 2. Click **Import**
-3. Select `docs/postman-collection.json`
+3. Select `postman/postman-collection.json`
 4. Update the `base_url` variable to your server URL
 
 ### 2. Setup Environment Variables
@@ -89,7 +90,7 @@ All API responses follow this structure:
 
 ## 📋 Endpoint Summary
 
-### Authentication (Public)
+### Authentication
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/api/auth/register` | Register new user |
@@ -98,9 +99,9 @@ All API responses follow this structure:
 | POST | `/api/auth/verify-otp` | Verify OTP code |
 | POST | `/api/auth/login-otp` | Login with OTP |
 | POST | `/api/auth/refresh` | Refresh access token |
-| POST | `/api/auth/logout` | Logout user |
 | POST | `/api/auth/forgot-password` | Request password reset |
 | POST | `/api/auth/reset-password` | Reset password with token |
+| POST | `/api/auth/logout` | Logout user (protected) |
 
 ### User Profile (Protected)
 | Method | Endpoint | Description |
@@ -124,17 +125,18 @@ All API responses follow this structure:
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/schedules` | Get all schedules |
-| GET | `/api/schedules/today` | Get today's schedules |
-| GET | `/api/schedules/upcoming` | Get upcoming schedules |
 | GET | `/api/schedules/stats` | Get schedule statistics |
-| GET | `/api/schedules/history` | Get completion history |
-| GET | `/api/schedules/completion-stats` | Get completion stats |
 | GET | `/api/schedules/{id}` | Get single schedule |
 | GET | `/api/schedules/{id}/logs` | Get schedule logs |
 | POST | `/api/schedules` | Create new schedule |
 | POST | `/api/schedules/logs/{id}/complete` | Mark log as completed |
 | PUT | `/api/schedules/{id}` | Update schedule |
 | PATCH | `/api/schedules/{id}/status` | Update schedule status |
+| POST | `/api/schedules/{id}/cancel` | Cancel schedule or one occurrence |
+| POST | `/api/schedules/{id}/uncancel` | Uncancel schedule or one occurrence |
+| POST | `/api/schedules/{id}/done` | Mark done (schedule or one occurrence) |
+| POST | `/api/schedules/{id}/undone` | Undo done (schedule or one occurrence) |
+| POST | `/api/schedules/logs/{id}/undo` | Undo a completed log |
 | DELETE | `/api/schedules/{id}` | Delete schedule |
 
 ---
