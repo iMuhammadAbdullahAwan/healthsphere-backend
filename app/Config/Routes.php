@@ -82,8 +82,6 @@ $routes->group('api', ['namespace' => 'App\Controllers\Api'], function ($routes)
         $routes->get('food-logs/recommendations', 'FoodController::recommendations');
         $routes->get('food-logs/(:num)', 'FoodController::show/$1');
         $routes->post('food-logs/analyze', 'FoodController::upload'); // Upload & analyze food image
-        $routes->post('food-logs/(:num)', 'FoodController::update/$1');
-        $routes->put('food-logs/(:num)', 'FoodController::update/$1');
         $routes->delete('food-logs/(:num)', 'FoodController::delete/$1');
 
         // Steps Routes
