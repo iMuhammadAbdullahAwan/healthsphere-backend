@@ -38,10 +38,10 @@ class NotificationSocket implements MessageComponentInterface
                 $this->clients->attach($conn);
                 $conn->isInternal = true;
                 return;
-            }            // User connection - JWT authentication
-            $cookieHeader = $conn->httpRequest->getHeader('Cookie')[0] ?? '';
-            parse_str(str_replace('; ', '&', $cookieHeader), $cookies);
-            $access_token = $cookies['_healthsphere_access_token'] ?? null;
+            }
+
+            // User connection - JWT authentication
+            $access_token = $this->extractAccessToken($conn, $queryParams);
 
             if (!$access_token) {
                 $this->respondError($conn, 'Access token not provided');
@@ -214,5 +214,34 @@ class NotificationSocket implements MessageComponentInterface
         } catch (\Throwable $e) {
             log_message('error', 'DB reconnect failed: ' . $e->getMessage());
         }
+    }
+
+    protected function extractAccessToken(ConnectionInterface $conn, array $queryParams): ?string
+    {
+        // 1) Query param for non-cookie clients (mobile/native/cross-origin)
+        $queryToken = $queryParams['access_token'] ?? null;
+        if (is_string($queryToken) && trim($queryToken) !== '') {
+            return trim($queryToken);
+        }
+
+        // 2) Authorization header: Bearer <token>
+        $authorization = $conn->httpRequest->getHeader('Authorization')[0] ?? null;
+        if (is_string($authorization) && stripos($authorization, 'Bearer ') === 0) {
+            $headerToken = trim(substr($authorization, 7));
+            if ($headerToken !== '') {
+                return $headerToken;
+            }
+        }
+
+        // 3) Cookie fallback
+        $cookieHeader = $conn->httpRequest->getHeader('Cookie')[0] ?? '';
+        parse_str(str_replace('; ', '&', $cookieHeader), $cookies);
+
+        $cookieToken = $cookies['_healthsphere_access_token'] ?? ($cookies['access_token'] ?? null);
+        if (is_string($cookieToken) && trim($cookieToken) !== '') {
+            return trim($cookieToken);
+        }
+
+        return null;
     }
 }

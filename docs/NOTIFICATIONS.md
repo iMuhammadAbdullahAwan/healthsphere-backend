@@ -317,32 +317,48 @@ The notification system supports real-time delivery via WebSocket connections.
 
 **WebSocket Endpoint:**
 ```
-ws://your-domain.com:8080
+ws://your-domain.com:8084
 ```
 
-**Connection:**
-```javascript
-const ws = new WebSocket('ws://your-domain.com:8080');
+**Authentication options (supported):**
+1. Query token: `?access_token=<JWT>`
+2. Authorization header: `Authorization: Bearer <JWT>`
+3. Cookie: `_healthsphere_access_token=<JWT>`
 
-ws.onopen = () => {
-  // Send authentication
-  ws.send(JSON.stringify({
-    type: 'auth',
-    token: 'your_access_token'
-  }));
-};
+**Recommended browser connection (query token):**
+```javascript
+const token = '<access_token>';
+const ws = new WebSocket(`ws://your-domain.com:8084?access_token=${encodeURIComponent(token)}`);
 
 ws.onmessage = (event) => {
-  const notification = JSON.parse(event.data);
-  console.log('New notification:', notification);
-  // Update UI with new notification
+  const payload = JSON.parse(event.data);
+
+  if (payload.type === 'connected') {
+    console.log('WebSocket connected', payload.data);
+  }
+
+  if (payload.type === 'ping') {
+    ws.send(JSON.stringify({ type: 'pong' }));
+  }
+
+  if (payload.type === 'notification') {
+    console.log('New notification:', payload.data);
+    // Update UI with new notification payload.data
+  }
 };
+```
+
+**Start WebSocket server:**
+```bash
+php spark notification:server
 ```
 
 **Real-time Notification Message:**
 ```json
 {
+  "status": "success",
   "type": "notification",
+  "message": "New notification",
   "data": {
     "id": 16,
     "message": "Time to drink water",
