@@ -35,10 +35,17 @@ class ScheduleHistoryModel extends Model
      */
     private function decodeSnapshotRow(array $row): array
     {
-        if (isset($row['schedule_snapshot']) && is_string($row['schedule_snapshot']) && $row['schedule_snapshot'] !== '') {
-            $decoded = json_decode($row['schedule_snapshot'], true);
-            if (json_last_error() === JSON_ERROR_NONE) {
-                $row['schedule_snapshot'] = $decoded;
+        $fields = ['schedule_snapshot', 'medicine_details', 'food_details', 'water_details', 'running_details', 'sleep_details', 'custom_details'];
+        foreach ($fields as $field) {
+            if (isset($row[$field]) && is_string($row[$field]) && $row[$field] !== '') {
+                $decoded = json_decode($row[$field], true);
+                // Handle double encoding
+                if (is_string($decoded)) {
+                    $decoded = json_decode($decoded, true);
+                }
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    $row[$field] = $decoded;
+                }
             }
         }
 

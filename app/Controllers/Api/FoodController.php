@@ -113,8 +113,17 @@ class FoodController extends BaseController
             $createdLog = $this->foodLogModel->builder()->where('id', $logId)->get()->getRowArray();
 
             if ($createdLog) {
-                $createdLog['other_nutrients'] = json_decode($createdLog['other_nutrients'] ?? '', true) ?? [];
-                $createdLog['raw_analysis'] = json_decode($createdLog['raw_analysis'] ?? '', true) ?? [];
+                foreach (['other_nutrients', 'raw_analysis'] as $field) {
+                    if (isset($createdLog[$field]) && is_string($createdLog[$field]) && !empty($createdLog[$field])) {
+                        $decoded = json_decode($createdLog[$field], true);
+                        if (is_string($decoded)) {
+                            $decoded = json_decode($decoded, true);
+                        }
+                        $createdLog[$field] = $decoded ?? [];
+                    } else {
+                        $createdLog[$field] = $createdLog[$field] ?? [];
+                    }
+                }
                 $createdLog['calories'] = (float)$createdLog['calories'];
                 $createdLog['protein'] = (float)$createdLog['protein'];
                 $createdLog['carbohydrates'] = (float)$createdLog['carbohydrates'];
@@ -170,8 +179,17 @@ class FoodController extends BaseController
 
             // Manually process JSON fields
             foreach ($logs as &$log) {
-                $log['other_nutrients'] = json_decode($log['other_nutrients'] ?? '', true) ?? [];
-                $log['raw_analysis'] = json_decode($log['raw_analysis'] ?? '', true) ?? [];
+                foreach (['other_nutrients', 'raw_analysis'] as $field) {
+                    if (isset($log[$field]) && is_string($log[$field]) && !empty($log[$field])) {
+                        $decoded = json_decode($log[$field], true);
+                        if (is_string($decoded)) {
+                            $decoded = json_decode($decoded, true);
+                        }
+                        $log[$field] = $decoded ?? [];
+                    } else {
+                        $log[$field] = $log[$field] ?? [];
+                    }
+                }
                 // Standard casts
                 $log['calories'] = (float)$log['calories'];
                 $log['protein'] = (float)$log['protein'];
@@ -497,8 +515,17 @@ class FoodController extends BaseController
             }
 
             // Manually process JSON fields
-            $log['other_nutrients'] = json_decode($log['other_nutrients'] ?? '', true) ?? [];
-            $log['raw_analysis'] = json_decode($log['raw_analysis'] ?? '', true) ?? [];
+            foreach (['other_nutrients', 'raw_analysis'] as $field) {
+                if (isset($log[$field]) && is_string($log[$field]) && !empty($log[$field])) {
+                    $decoded = json_decode($log[$field], true);
+                    if (is_string($decoded)) {
+                        $decoded = json_decode($decoded, true);
+                    }
+                    $log[$field] = $decoded ?? [];
+                } else {
+                    $log[$field] = $log[$field] ?? [];
+                }
+            }
             // Standard casts
             $log['calories'] = (float)$log['calories'];
             $log['protein'] = (float)$log['protein'];

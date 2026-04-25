@@ -109,6 +109,12 @@ $routes->group('api', ['namespace' => 'App\Controllers\Api'], function ($routes)
             $routes->delete('readings/(:num)', 'DeviceController::delete/$1');
         });
 
+        // Wellness Brain Routes
+        $routes->group('wellness', function ($routes) {
+            $routes->get('status', 'WellnessController::getStatus');
+            $routes->get('history', 'WellnessController::getHistory');
+        });
+
         // Admin Routes (user_admin scoped operations; super_admin can still access)
         $routes->group('admin', ['filter' => 'admin'], function ($routes) {
             $routes->get('analytics', 'Users::adminAnalytics');

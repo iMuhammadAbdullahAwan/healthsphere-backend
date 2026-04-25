@@ -133,15 +133,27 @@ class ScheduleModel extends Model
         if (isset($data['data'])) {
             // Single record
             foreach ($jsonFields as $field) {
-                if (isset($data['data'][$field]) && is_string($data['data'][$field])) {
-                    $data['data'][$field] = json_decode($data['data'][$field], true);
+                if (isset($data['data'][$field]) && is_string($data['data'][$field]) && $data['data'][$field] !== '') {
+                    $decoded = json_decode($data['data'][$field], true);
+                    if (is_string($decoded)) {
+                        $decoded = json_decode($decoded, true);
+                    }
+                    $data['data'][$field] = $decoded ?? [];
+                } elseif (isset($data['data'][$field]) && empty($data['data'][$field])) {
+                    $data['data'][$field] = [];
                 }
             }
         } elseif (isset($data['id'])) {
             // When using find() directly
             foreach ($jsonFields as $field) {
-                if (isset($data[$field]) && is_string($data[$field])) {
-                    $data[$field] = json_decode($data[$field], true);
+                if (isset($data[$field]) && is_string($data[$field]) && $data[$field] !== '') {
+                    $decoded = json_decode($data[$field], true);
+                    if (is_string($decoded)) {
+                        $decoded = json_decode($decoded, true);
+                    }
+                    $data[$field] = $decoded ?? [];
+                } elseif (isset($data[$field]) && empty($data[$field])) {
+                    $data[$field] = [];
                 }
             }
         }
@@ -167,9 +179,17 @@ class ScheduleModel extends Model
         foreach ($jsonFields as $field) {
             if (isset($row[$field]) && is_string($row[$field]) && $row[$field] !== '') {
                 $decoded = json_decode($row[$field], true);
+                // Handle double encoding
+                if (is_string($decoded)) {
+                    $decoded = json_decode($decoded, true);
+                }
                 if (json_last_error() === JSON_ERROR_NONE) {
                     $row[$field] = $decoded;
+                } else {
+                    $row[$field] = [];
                 }
+            } elseif (isset($row[$field]) && empty($row[$field])) {
+                $row[$field] = [];
             }
         }
 
