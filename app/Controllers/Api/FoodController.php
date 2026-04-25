@@ -39,22 +39,53 @@ class FoodController extends BaseController
             }
 
             $validationRules = [
-                'food_name' => 'required|string|max_length[255]',
-                'calories' => 'required|numeric',
-                'protein' => 'permit_empty|numeric',
+                'food_name'     => 'required|string|max_length[255]',
+                'calories'      => 'required|numeric',
+                'protein'       => 'permit_empty|numeric',
                 'carbohydrates' => 'permit_empty|numeric',
-                'fat' => 'permit_empty|numeric',
-                'meal_type' => 'permit_empty|in_list[breakfast,lunch,dinner,snack]',
+                'fat'           => 'permit_empty|numeric',
+                'fiber'         => 'permit_empty|numeric',
+                'sugar'         => 'permit_empty|numeric',
+                'sodium'        => 'permit_empty|numeric',
+                'meal_type'     => 'permit_empty|in_list[breakfast,lunch,dinner,snack]',
+                'consumed_at'   => 'permit_empty|valid_date[Y-m-d H:i:s]',
+                'food_image'    => 'permit_empty|uploaded[food_image]|max_size[food_image,20480]|is_image[food_image]',
             ];
 
             if (!$this->validate($validationRules)) {
-                return sendApiResponse(null, 'Validation failed: ' . json_encode($this->validator->getErrors()), 400);
+                return sendApiResponse($this->validator->getErrors(), 'Validation failed', 400);
+            }
+
+            // Handle File Upload if present
+            $imagePath = $this->request->getVar('image_path');
+            $file = $this->request->getFile('food_image');
+
+            if ($file && $file->isValid() && !$file->hasMoved()) {
+                $uploadPath = rtrim(FCPATH, '\\/') . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'food' . DIRECTORY_SEPARATOR;
+                if (!is_dir($uploadPath)) {
+                    mkdir($uploadPath, 0755, true);
+                }
+
+                $fileName = $file->getRandomName();
+                $file->move($uploadPath, $fileName);
+                $imagePath = 'uploads/food/' . $fileName;
+            }
+
+            // Handle JSON strings from form-data
+            $otherNutrients = $this->request->getVar('other_nutrients');
+            if (is_string($otherNutrients)) {
+                $otherNutrients = json_decode($otherNutrients, true) ?? [];
+            }
+
+            $rawAnalysis = $this->request->getVar('raw_analysis');
+            if (is_string($rawAnalysis)) {
+                $rawAnalysis = json_decode($rawAnalysis, true) ?? [];
             }
 
             $data = [
                 'user_id'          => $this->current_user_id,
                 'food_name'        => $this->request->getVar('food_name'),
-                'image_path'       => $this->request->getVar('image_path'),
+                'image_path'       => $imagePath,
                 'portion_size'     => $this->request->getVar('portion_size') ?? 'Standard portion',
                 'calories'         => $this->request->getVar('calories'),
                 'protein'          => $this->request->getVar('protein') ?? 0,
@@ -63,8 +94,9 @@ class FoodController extends BaseController
                 'fiber'            => $this->request->getVar('fiber') ?? 0,
                 'sugar'            => $this->request->getVar('sugar') ?? 0,
                 'sodium'           => $this->request->getVar('sodium') ?? 0,
+                'other_nutrients'  => $otherNutrients ?? [],
                 'confidence_score' => $this->request->getVar('confidence_score'),
-                'raw_analysis'     => $this->request->getVar('raw_analysis'),
+                'raw_analysis'     => $rawAnalysis ?? [],
                 'meal_type'        => $this->request->getVar('meal_type') ?? 'snack',
                 'consumed_at'      => $this->request->getVar('consumed_at') ?? date('Y-m-d H:i:s'),
             ];
@@ -72,11 +104,22 @@ class FoodController extends BaseController
             $logId = $this->foodLogModel->insert($data);
 
             if (!$logId) {
-                return sendApiResponse(null, 'Failed to log food entry', 500);
+                $errors = $this->foodLogModel->errors();
+                $errorMessage = !empty($errors) ? implode(', ', $errors) : 'Failed to log food entry';
+                return sendApiResponse(null, $errorMessage, 400);
             }
 
-            // Return the created log
-            $createdLog = $this->foodLogModel->find($logId);
+            // Return the created log (using direct query to avoid casting crashes)
+            $createdLog = $this->foodLogModel->builder()->where('id', $logId)->get()->getRowArray();
+
+            if ($createdLog) {
+                $createdLog['other_nutrients'] = json_decode($createdLog['other_nutrients'] ?? '', true) ?? [];
+                $createdLog['raw_analysis'] = json_decode($createdLog['raw_analysis'] ?? '', true) ?? [];
+                $createdLog['calories'] = (float)$createdLog['calories'];
+                $createdLog['protein'] = (float)$createdLog['protein'];
+                $createdLog['carbohydrates'] = (float)$createdLog['carbohydrates'];
+                $createdLog['fat'] = (float)$createdLog['fat'];
+            }
 
             return sendApiResponse($createdLog, 'Meal logged successfully', 201);
         } catch (\Throwable $e) {
@@ -104,23 +147,37 @@ class FoodController extends BaseController
             $limit = $this->request->getVar('limit') ?? 20;
             $offset = ($page - 1) * $limit;
 
-            $query = $this->foodLogModel->where('user_id', $this->current_user_id);
+            // Use Query Builder directly to avoid Model casting issues
+            $builder = $this->foodLogModel->builder();
+            $builder->where('user_id', $this->current_user_id);
+            $builder->where('deleted_at', null); // Manual soft delete check
 
             if ($search) {
-                $query->like('food_name', $search);
+                $builder->like('food_name', $search);
             }
             if ($mealType) {
-                $query->where('meal_type', $mealType);
+                $builder->where('meal_type', $mealType);
             }
             if ($startDate) {
-                $query->where('consumed_at >=', $startDate . ' 00:00:00');
+                $builder->where('consumed_at >=', $startDate . ' 00:00:00');
             }
             if ($endDate) {
-                $query->where('consumed_at <=', $endDate . ' 23:59:59');
+                $builder->where('consumed_at <=', $endDate . ' 23:59:59');
             }
 
-            $total = (clone $query)->countAllResults();
-            $logs = $query->orderBy('consumed_at', 'DESC')->findAll($limit, $offset);
+            $total = $builder->countAllResults(false);
+            $logs = $builder->orderBy('consumed_at', 'DESC')->get($limit, $offset)->getResultArray();
+
+            // Manually process JSON fields
+            foreach ($logs as &$log) {
+                $log['other_nutrients'] = json_decode($log['other_nutrients'] ?? '', true) ?? [];
+                $log['raw_analysis'] = json_decode($log['raw_analysis'] ?? '', true) ?? [];
+                // Standard casts
+                $log['calories'] = (float)$log['calories'];
+                $log['protein'] = (float)$log['protein'];
+                $log['carbohydrates'] = (float)$log['carbohydrates'];
+                $log['fat'] = (float)$log['fat'];
+            }
 
             return sendApiResponse([
                 'logs' => $logs,
@@ -133,7 +190,7 @@ class FoodController extends BaseController
             ], 'Food logs retrieved successfully');
         } catch (\Throwable $e) {
             log_message('error', 'Get food logs error: ' . $e->getMessage());
-            return sendApiResponse(null, 'Failed to retrieve food logs', 500);
+            return sendApiResponse(null, 'Failed to retrieve food logs. There might be an issue with some record formats.', 500);
         }
     }
 
@@ -237,17 +294,20 @@ class FoodController extends BaseController
                     'Authorization' => 'Bearer ' . $this->openAIConfig->logMealToken
                 ],
                 'http_errors' => false,
-                'timeout' => 30
+                'timeout' => 60 // Increased timeout
             ]);
 
             if ($response->getStatusCode() !== 200) {
                 log_message('error', 'LogMeal Recommendation failed: ' . $response->getBody());
-                return sendApiResponse(null, 'Failed to fetch recommendations', 500);
+                return sendApiResponse([], 'Recommendations service is temporarily unavailable', 200);
             }
 
             $recommendations = json_decode($response->getBody(), true);
 
             return sendApiResponse($recommendations, 'Food recommendations retrieved successfully');
+        } catch (\GuzzleHttp\Exception\ConnectException | \GuzzleHttp\Exception\RequestException $e) {
+            log_message('error', 'Recommendations timeout or connection error: ' . $e->getMessage());
+            return sendApiResponse([], 'Recommendations service timed out. Please try again later.', 200);
         } catch (\Throwable $e) {
             log_message('error', 'Recommendations error: ' . $e->getMessage());
             return sendApiResponse(null, 'An error occurred while fetching recommendations', 500);
@@ -396,65 +456,31 @@ class FoodController extends BaseController
                 return sendApiResponse(null, 'Food log ID is required', 400);
             }
 
-            $log = $this->foodLogModel->where('user_id', $this->current_user_id)->find($id);
+            // Use Query Builder directly to avoid Model casting issues
+            $log = $this->foodLogModel->builder()
+                ->where('user_id', $this->current_user_id)
+                ->where('id', $id)
+                ->where('deleted_at', null)
+                ->get()
+                ->getRowArray();
 
             if (!$log) {
                 return sendApiResponse(null, 'Food log not found', 404);
             }
+
+            // Manually process JSON fields
+            $log['other_nutrients'] = json_decode($log['other_nutrients'] ?? '', true) ?? [];
+            $log['raw_analysis'] = json_decode($log['raw_analysis'] ?? '', true) ?? [];
+            // Standard casts
+            $log['calories'] = (float)$log['calories'];
+            $log['protein'] = (float)$log['protein'];
+            $log['carbohydrates'] = (float)$log['carbohydrates'];
+            $log['fat'] = (float)$log['fat'];
 
             return sendApiResponse($log, 'Food log retrieved successfully', 200);
         } catch (\Throwable $e) {
             log_message('error', 'Get food log error: ' . $e->getMessage());
-            return sendApiResponse(null, 'Failed to retrieve food log', 500);
-        }
-    }
-
-    /**
-     * Update a food log
-     * PUT /api/food-logs/{id}
-     * 
-     * @param int|null $id Food log ID
-     * @return ResponseInterface
-     */
-    public function update($id = null): ResponseInterface
-    {
-        try {
-            if (!$this->current_user_id) {
-                return sendApiResponse(null, 'User not authenticated', 401);
-            }
-
-            if (!$id) {
-                return sendApiResponse(null, 'Food log ID is required', 400);
-            }
-
-            // Check if log exists and belongs to user
-            $log = $this->foodLogModel->where('user_id', $this->current_user_id)->find($id);
-            if (!$log) {
-                return sendApiResponse(null, 'Food log not found', 404);
-            }
-
-            $data = $this->request->getJSON(true);
-            if (!$data) {
-                return sendApiResponse(null, 'Invalid JSON data', 400);
-            }
-
-            // Prevent changing user_id
-            unset($data['user_id']);
-
-            $updated = $this->foodLogModel->update($id, $data);
-
-            if (!$updated) {
-                $errors = $this->foodLogModel->errors();
-                $errorMessage = !empty($errors) ? implode(', ', $errors) : 'Failed to update food log';
-                return sendApiResponse(null, $errorMessage, 400);
-            }
-
-            $updatedLog = $this->foodLogModel->find($id);
-
-            return sendApiResponse($updatedLog, 'Food log updated successfully', 200);
-        } catch (\Throwable $e) {
-            log_message('error', 'Update food log error: ' . $e->getMessage());
-            return sendApiResponse(null, 'Failed to update food log', 500);
+            return sendApiResponse(null, 'Failed to retrieve food log. The record might have invalid data.', 500);
         }
     }
 
@@ -476,8 +502,14 @@ class FoodController extends BaseController
                 return sendApiResponse(null, 'Food log ID is required', 400);
             }
 
-            // Check if log exists and belongs to user
-            $log = $this->foodLogModel->where('user_id', $this->current_user_id)->find($id);
+            // Check if log exists and belongs to user (Direct query to avoid casting crash)
+            $log = $this->foodLogModel->builder()
+                ->where('user_id', $this->current_user_id)
+                ->where('id', $id)
+                ->where('deleted_at', null)
+                ->get()
+                ->getRowArray();
+
             if (!$log) {
                 return sendApiResponse(null, 'Food log not found', 404);
             }

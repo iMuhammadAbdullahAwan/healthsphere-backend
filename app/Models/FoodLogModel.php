@@ -51,8 +51,8 @@ class FoodLogModel extends Model
         'sugar' => 'float',
         'sodium' => 'float',
         'confidence_score' => 'int',
-        'other_nutrients' => 'json',
-        'raw_analysis' => 'json',
+        'other_nutrients' => 'json-array',
+        'raw_analysis' => 'json-array',
     ];
 
     protected array $castHandlers = [];
