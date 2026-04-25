@@ -288,13 +288,13 @@ class FoodController extends BaseController
                 ]);
             }
 
-            // Get recommendations
-            $response = $client->request('GET', $this->openAIConfig->logMealBaseUrl . '/recommend/dish', [
+            // Get recommendations (using /recipe to get full details instead of just IDs)
+            $response = $client->request('GET', $this->openAIConfig->logMealBaseUrl . '/recommend/recipe', [
                 'headers' => [
                     'Authorization' => 'Bearer ' . $this->openAIConfig->logMealToken
                 ],
                 'http_errors' => false,
-                'timeout' => 60 // Increased timeout
+                'timeout' => 60
             ]);
 
             if ($response->getStatusCode() !== 200) {
@@ -304,7 +304,35 @@ class FoodController extends BaseController
 
             $recommendations = json_decode($response->getBody(), true);
 
-            return sendApiResponse($recommendations, 'Food recommendations retrieved successfully');
+            // Extract relevant info from recipes
+            $formattedRecommendations = [];
+            $recipes = $recommendations['recommended_recipes'] ?? $recommendations['recipes'] ?? $recommendations['data'] ?? [];
+            
+            if (empty($recipes)) {
+                // Try to find any array in the response
+                foreach ($recommendations as $key => $value) {
+                    if (is_array($value)) {
+                        $recipes = $value;
+                        break;
+                    }
+                }
+            }
+
+            if (is_array($recipes)) {
+                foreach ($recipes as $recipe) {
+                    $formattedRecommendations[] = [
+                        'name' => $recipe['recipe_name'] ?? $recipe['name'] ?? $recipe['label'] ?? 'Unknown Dish',
+                        'calories' => $recipe['calories'] ?? $recipe['energy'] ?? null,
+                        'carbohydrates' => $recipe['carbohydrates'] ?? null,
+                        'fat' => $recipe['fat'] ?? null,
+                        'protein' => $recipe['protein'] ?? null,
+                        'match_score' => $recipe['score'] ?? $recipe['relevance'] ?? null,
+                        'image' => $recipe['image_url'] ?? $recipe['image'] ?? null,
+                    ];
+                }
+            }
+
+            return sendApiResponse($formattedRecommendations, 'Food recommendations retrieved successfully');
         } catch (\GuzzleHttp\Exception\ConnectException | \GuzzleHttp\Exception\RequestException $e) {
             log_message('error', 'Recommendations timeout or connection error: ' . $e->getMessage());
             return sendApiResponse([], 'Recommendations service timed out. Please try again later.', 200);

@@ -13,7 +13,6 @@ The Food API allows users to analyze food images using AI and log their meals in
 | GET | `/api/food-logs/summary` | Get nutrition summary |
 | GET | `/api/food-logs/daily` | Get daily nutrition breakdown |
 | GET | `/api/food-logs/{id}` | Get single food log detail |
-| PUT | `/api/food-logs/{id}` | Update a food log entry |
 | DELETE | `/api/food-logs/{id}` | Delete a food log entry |
 
 ## AI Analysis
@@ -56,7 +55,7 @@ Uploaded food images are stored in `public/uploads/food/`, and the API returns a
 ### Get Meal Recommendations
 `GET /api/food-logs/recommendations`
 
-Returns personalized meal suggestions based on the user's past intakes and profile.
+Returns personalized meal suggestions based on the user's past intakes and profile. This data is retrieved from LogMeal's recipe recommendation engine.
 
 **Response:**
 ```json
@@ -66,8 +65,12 @@ Returns personalized meal suggestions based on the user's past intakes and profi
   "data": [
     {
       "name": "Grilled Salmon with Asparagus",
+      "calories": 420,
+      "protein": 35,
+      "carbohydrates": 10,
+      "fat": 18,
       "match_score": 95,
-      "calories": 420
+      "image": "https://storage.logmeal.com/..."
     }
   ]
 }
@@ -78,13 +81,20 @@ Returns personalized meal suggestions based on the user's past intakes and profi
 ### Log a Meal
 `POST /api/food-logs`
 
-Permanently stores a meal in the user's food diary.
+Permanently stores a meal in the user's food diary. This endpoint supports both JSON and Multipart Form-Data (for direct image uploads).
 
-**Request Body (application/json):**
+**Request Parameters (Multipart/Form-Data or JSON):**
 - `food_name`: (required) Name of the food
 - `calories`: (required) Calorie count
-- `meal_type`: (optional) breakfast, lunch, dinner, snack
-- `protein`, `carbohydrates`, `fat`, etc.
+- `food_image`: (optional, File) Image file to upload directly
+- `image_path`: (optional, String) Path to an already uploaded image (e.g. from `/analyze`)
+- `meal_type`: (optional) `breakfast`, `lunch`, `dinner`, `snack`
+- `portion_size`: (optional) e.g. "1 bowl", "250g"
+- `protein`, `carbohydrates`, `fat`, `fiber`, `sugar`, `sodium`: (optional, numeric)
+- `other_nutrients`: (optional, JSON string/array)
+- `raw_analysis`: (optional, JSON string/array) AI analysis data
+- `consumed_at`: (optional, YYYY-MM-DD HH:mm:ss) Defaults to current time
+- `confidence_score`: (optional, 1-100) AI confidence level
 
 **Response:**
 ```json
