@@ -1979,6 +1979,149 @@
       ]
     },
     {
+      "name": "Device Guider",
+      "item": [
+        {
+          "name": "Get All Readings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/devices/readings",
+              "host": ["{{base_url}}"],
+              "path": ["api", "devices", "readings"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Readings (Filtered)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/devices/readings?status=high&search=glucose&start_date=2026-04-01&end_date=2026-04-30",
+              "host": ["{{base_url}}"],
+              "path": ["api", "devices", "readings"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "high"
+                },
+                {
+                  "key": "search",
+                  "value": "glucose"
+                },
+                {
+                  "key": "start_date",
+                  "value": "2026-04-01"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2026-04-30"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Device Reading (with image)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "device_name",
+                  "value": "Blood Glucose Monitor",
+                  "type": "text"
+                },
+                {
+                  "key": "reading_value",
+                  "value": "115.5",
+                  "type": "text"
+                },
+                {
+                  "key": "reading_unit",
+                  "value": "mg/dL",
+                  "type": "text"
+                },
+                {
+                  "key": "device_image",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "recorded_at",
+                  "value": "2026-04-25 11:30:00",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/devices/readings",
+              "host": ["{{base_url}}"],
+              "path": ["api", "devices", "readings"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Single Reading",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/devices/readings/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "devices", "readings", "1"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Reading",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/devices/readings/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "devices", "readings", "1"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
       "name": "Health Check",
       "request": {
         "method": "GET",

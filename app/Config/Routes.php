@@ -101,6 +101,14 @@ $routes->group('api', ['namespace' => 'App\Controllers\Api'], function ($routes)
             $routes->delete('(:num)', 'ExerciseController::delete/$1');
         });
 
+        // Device Guider Routes
+        $routes->group('devices', function ($routes) {
+            $routes->get('readings', 'DeviceController::index');
+            $routes->post('readings', 'DeviceController::create');
+            $routes->get('readings/(:num)', 'DeviceController::show/$1');
+            $routes->delete('readings/(:num)', 'DeviceController::delete/$1');
+        });
+
         // Admin Routes (user_admin scoped operations; super_admin can still access)
         $routes->group('admin', ['filter' => 'admin'], function ($routes) {
             $routes->get('analytics', 'Users::adminAnalytics');
