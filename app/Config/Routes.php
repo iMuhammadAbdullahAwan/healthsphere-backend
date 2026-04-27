@@ -115,6 +115,9 @@ $routes->group('api', ['namespace' => 'App\Controllers\Api'], function ($routes)
             $routes->get('history', 'WellnessController::getHistory');
         });
 
+        // Overall Stats Route
+        $routes->get('overall-stats', 'StatsController::index');
+
         // Admin Routes (user_admin scoped operations; super_admin can still access)
         $routes->group('admin', ['filter' => 'admin'], function ($routes) {
             $routes->get('analytics', 'Users::adminAnalytics');
