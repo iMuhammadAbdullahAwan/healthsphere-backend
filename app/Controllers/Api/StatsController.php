@@ -41,7 +41,6 @@ class StatsController extends BaseController
             ];
 
             return sendApiResponse($overallStats, 'Overall stats retrieved successfully', 200);
-
         } catch (\Throwable $e) {
             log_message('error', 'Get overall stats error: ' . $e->getMessage() . ' ' . $e->getTraceAsString());
             return sendApiResponse(null, 'Failed to retrieve stats', 500);
@@ -66,7 +65,7 @@ class StatsController extends BaseController
             ->where('user_id', $userId)
             ->whereIn('status', ['canceled', 'skipped', 'missed'])
             ->countAllResults();
-            
+
         $missedSkippedLogs += $db->table('schedule_logs')
             ->where('user_id', $userId)
             ->whereIn('status', ['canceled', 'skipped', 'missed'])
@@ -126,7 +125,7 @@ class StatsController extends BaseController
             ->where('s.schedule_type', 'medicine')
             ->whereIn('h.status', ['canceled', 'skipped', 'missed'])
             ->countAllResults();
-            
+
         $medMissed += $db->table('schedule_logs l')
             ->join('schedules s', 'l.schedule_id = s.id')
             ->where('l.user_id', $userId)
@@ -152,7 +151,7 @@ class StatsController extends BaseController
         foreach ($waterHistory as $wh) {
             $snap = is_string($wh['schedule_snapshot']) ? json_decode($wh['schedule_snapshot'], true) : $wh['schedule_snapshot'];
             if (is_string($snap)) $snap = json_decode($snap, true); // double decode
-            
+
             $amount = $snap['water_details']['amount_ml'] ?? 0;
             $totalWaterMl += (float)$amount;
             $waterDays[$wh['date']] = true;
@@ -174,7 +173,7 @@ class StatsController extends BaseController
         foreach ($sleepHistory as $sh) {
             $snap = is_string($sh['schedule_snapshot']) ? json_decode($sh['schedule_snapshot'], true) : $sh['schedule_snapshot'];
             if (is_string($snap)) $snap = json_decode($snap, true); // double decode
-            
+
             // Try to extract hours/minutes or calculate from sleep_time to wake_time
             $sleepMins = 0;
             if (isset($snap['sleep_details'])) {
@@ -192,8 +191,32 @@ class StatsController extends BaseController
         }
         $avgSleepHours = $sleepCount > 0 ? round(($totalSleepMins / 60) / $sleepCount, 2) : 0;
 
+        // Count fields
+        $totalSchedules = $db->table('schedules')
+            ->where('user_id', $userId)
+            ->countAllResults();
+
+        $totalMedicineSchedules = $db->table('schedules')
+            ->where('user_id', $userId)
+            ->where('schedule_type', 'medicine')
+            ->countAllResults();
+
+        $totalWaterIntakes = $db->table('schedule_history h')
+            ->join('schedules s', 'h.schedule_id = s.id')
+            ->where('h.user_id', $userId)
+            ->where('s.schedule_type', 'water')
+            ->where('h.status', 'completed')
+            ->countAllResults();
+
+        $totalSleepLogs = $sleepCount;
+
         return [
             'total_active_routines' => $activeRoutines,
+            'total_schedules_count' => $totalSchedules,
+            'total_completed_logs_count' => $completedLogs,
+            'total_medicine_schedules_count' => $totalMedicineSchedules,
+            'total_water_intakes_count' => $totalWaterIntakes,
+            'total_sleep_logs_count' => $totalSleepLogs,
             'overall_adherence_rate_percent' => $adherenceRate,
             'current_streak_days' => $streak,
             'medicine_adherence_percent' => $medAdherence,
@@ -230,7 +253,7 @@ class StatsController extends BaseController
             ->where('deleted_at', null)
             ->where('status', 'normal')
             ->countAllResults();
-        
+
         $stabilityPercent = $totalScans > 0 ? round(($normalScans / $totalScans) * 100, 2) : 0;
 
         // Recent Abnormalities
@@ -242,11 +265,17 @@ class StatsController extends BaseController
             ->whereIn('status', ['high', 'low'])
             ->countAllResults();
 
+        // Count fields
+        $totalNormalReadings = $normalScans;
+        $totalAbnormalReadings = $totalScans - $normalScans;
+
         return [
             'total_lifetime_scans' => $totalScans,
+            'total_normal_readings_count' => $totalNormalReadings,
+            'total_abnormal_readings_count' => $totalAbnormalReadings,
+            'recent_abnormalities_30d_count' => $recentAbnormal,
             'device_usage_breakdown' => $breakdown,
             'biomarker_stability_percent' => $stabilityPercent,
-            'recent_abnormalities_30d' => $recentAbnormal,
         ];
     }
 
@@ -259,7 +288,7 @@ class StatsController extends BaseController
             ->getResultArray();
 
         $totalMeals = count($foodLogs);
-        
+
         $totalCals = 0;
         $totalProtein = 0;
         $totalCarbs = 0;
@@ -284,7 +313,8 @@ class StatsController extends BaseController
         $mealConsistency = $numDays > 0 ? round($totalMeals / $numDays, 2) : 0;
 
         return [
-            'total_meals_logged' => $totalMeals,
+            'total_meals_logged_count' => $totalMeals,
+            'days_with_meals_count' => $numDays,
             'daily_caloric_average' => $avgCals,
             'macronutrient_averages' => [
                 'protein' => $avgProtein,
@@ -305,14 +335,14 @@ class StatsController extends BaseController
         $totalSteps = 0;
         $totalDistance = 0;
         $totalCalories = 0;
-        
+
         $stepsPerDay = [];
 
         foreach ($sessions as $s) {
             $totalSteps += (int)$s['steps'];
             $totalDistance += (float)$s['distance_km'];
             $totalCalories += (float)$s['calories'];
-            
+
             $date = date('Y-m-d', strtotime($s['started_at'] ?? $s['created_at']));
             if (!isset($stepsPerDay[$date])) {
                 $stepsPerDay[$date] = 0;
@@ -331,12 +361,16 @@ class StatsController extends BaseController
                 $goalMetDays++;
             }
         }
-        
+
         $totalDays = count($stepsPerDay);
         $goalAchievementRate = $totalDays > 0 ? round(($goalMetDays / $totalDays) * 100, 2) : 0;
+        $totalSessions = count($sessions);
 
         return [
             'total_lifetime_steps' => $totalSteps,
+            'total_sessions_count' => $totalSessions,
+            'days_tracked_count' => $totalDays,
+            'days_goal_met_count' => $goalMetDays,
             'total_distance_km' => round($totalDistance, 2),
             'total_calories_burned' => round($totalCalories, 2),
             'goal_achievement_rate_percent' => $goalAchievementRate,
@@ -353,13 +387,13 @@ class StatsController extends BaseController
         $totalExercises = count($exercises);
         $totalTime = 0;
         $totalCals = 0;
-        
+
         $exerciseCounts = [];
 
         foreach ($exercises as $ex) {
             $totalTime += (int)$ex['duration_minutes'];
             $totalCals += (float)$ex['calories_burned'];
-            
+
             $name = $ex['exercise_name'] ?: 'Unknown';
             if (!isset($exerciseCounts[$name])) {
                 $exerciseCounts[$name] = 0;
@@ -376,8 +410,11 @@ class StatsController extends BaseController
             }
         }
 
+        $uniqueExercises = count($exerciseCounts);
+
         return [
-            'total_exercises_done' => $totalExercises,
+            'total_exercises_done_count' => $totalExercises,
+            'unique_exercises_count' => $uniqueExercises,
             'total_time_invested_minutes' => $totalTime,
             'calories_burned' => round($totalCals, 2),
             'top_exercise' => $topExercise,
