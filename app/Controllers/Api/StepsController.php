@@ -41,7 +41,7 @@ class StepsController extends BaseController
             $offset = ($page - 1) * $limit;
 
             $query = $this->stepSessionModel->where('user_id', $this->current_user_id);
-            
+
             $total = (clone $query)->countAllResults();
             $sessions = $query->orderBy('started_at', 'DESC')->findAll($limit, $offset);
 
@@ -107,7 +107,7 @@ class StepsController extends BaseController
             }
 
             $steps = (int)$this->request->getVar('steps');
-            
+
             // Calculate calories if not provided (rough estimate: 0.04 kcal per step)
             $calories = $this->request->getVar('calories') ?? ($steps * 0.04);
 
@@ -212,6 +212,109 @@ class StepsController extends BaseController
         } catch (\Throwable $e) {
             log_message('error', 'Toggle tracking error: ' . $e->getMessage());
             return sendApiResponse(null, 'Failed to update tracking', 500);
+        }
+    }
+
+    /**
+     * Create or update today's auto step session
+     * One session per day that gets updated as user takes steps
+     * POST /api/steps/auto-session
+     * 
+     * Request body:
+     * {
+     *   "steps": 1250,
+     *   "distanceKm": 0.85,
+     *   "durationSeconds": 900,
+     *   "calories": 50
+     * }
+     */
+    public function autoSession(): ResponseInterface
+    {
+        try {
+            if (!$this->current_user_id) {
+                return sendApiResponse(null, 'User not authenticated', 401);
+            }
+
+            // Check if tracking is enabled
+            $user = $this->userModel->find($this->current_user_id);
+            if (!$user || !$user['step_tracking_enabled']) {
+                return sendApiResponse(null, 'Step tracking is not enabled', 403);
+            }
+
+            $json = $this->request->getJSON(true);
+
+            $rules = [
+                'steps'           => 'required|integer|greater_than_equal_to[0]',
+                'distanceKm'      => 'required|numeric|greater_than_equal_to[0]',
+                'durationSeconds' => 'required|integer|greater_than_equal_to[0]',
+            ];
+
+            if (!$this->validate($rules)) {
+                return sendApiResponse(null, 'Validation failed', 400, $this->validator->getErrors());
+            }
+
+            // Get today's date
+            $today = date('Y-m-d');
+            $startOfDay = $today . ' 00:00:00';
+            $endOfDay = $today . ' 23:59:59';
+
+            // Check if today's auto session already exists
+            $existingSession = $this->stepSessionModel
+                ->where('user_id', $this->current_user_id)
+                ->where('started_at >=', $startOfDay)
+                ->where('started_at <=', $endOfDay)
+                ->first();
+
+            $steps = (int)$json['steps'];
+            $calories = $json['calories'] ?? ($steps * 0.04);
+            $timestamp = date('Y-m-d H:i:s');
+
+            if ($existingSession) {
+                // Update existing session
+                $updateData = [
+                    'steps'            => $steps,
+                    'distance_km'      => $json['distanceKm'],
+                    'duration_seconds' => $json['durationSeconds'],
+                    'calories'         => $calories,
+                    'updated_at'       => $timestamp,
+                ];
+
+                $this->stepSessionModel->update($existingSession['id'], $updateData);
+
+                return sendApiResponse([
+                    'id'      => $existingSession['id'],
+                    'message' => 'Auto session updated successfully',
+                    'is_new'  => false,
+                    ...array_merge($existingSession, $updateData)
+                ], 'Auto session updated', 200);
+            } else {
+                // Create new session for today
+                $data = [
+                    'user_id'          => $this->current_user_id,
+                    'steps'            => $steps,
+                    'distance_km'      => $json['distanceKm'],
+                    'duration_seconds' => $json['durationSeconds'],
+                    'calories'         => $calories,
+                    'started_at'       => $timestamp,
+                ];
+
+                $id = $this->stepSessionModel->insert($data);
+
+                if (!$id) {
+                    log_message('error', 'Auto session save failed: ' . json_encode($this->stepSessionModel->errors()));
+                    return sendApiResponse(null, 'Failed to create auto session', 500);
+                }
+
+                return sendApiResponse([
+                    'id'      => $id,
+                    'message' => 'Auto session created successfully',
+                    'is_new'  => true,
+                    ...$data
+                ], 'Auto session created', 201);
+            }
+        } catch (\Throwable $e) {
+            log_message('error', 'Auto session error: ' . $e->getMessage());
+            return sendApiResponse(null, 'Failed to process auto session', 500);
         }
     }
 }

@@ -92,6 +92,7 @@ $routes->group('api', ['namespace' => 'App\Controllers\Api'], function ($routes)
             $routes->delete('sessions/(:num)', 'StepsController::delete/$1');
             $routes->get('tracking/status', 'StepsController::getStatus');
             $routes->patch('tracking', 'StepsController::toggleTracking');
+            $routes->post('auto-session', 'StepsController::autoSession'); // Auto session create/update (one per day)
         });
 
         // Exercise Routes
